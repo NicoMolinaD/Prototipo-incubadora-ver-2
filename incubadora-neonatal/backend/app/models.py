@@ -1,27 +1,19 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Float, DateTime, func
-from .db import Base
+# incubadora-neonatal/backend/app/models.py
+from sqlalchemy.orm import declarative_base, Mapped, mapped_column
+from sqlalchemy import Integer, String, Float, DateTime
 
+Base = declarative_base()
 
 class Measurement(Base):
     __tablename__ = "measurements"
-    id = Column(Integer, primary_key=True, index=True)
-    device_id = Column(String(64), index=True, nullable=False)
-    ts_ms = Column(BigInteger, nullable=False)
-    created_at = Column(DateTime, server_default=func.now())
-    temperatura = Column(Float)
-    humedad = Column(Float)
-    luz = Column(Float)
-    ntc_c = Column(Float)
-    ntc_raw = Column(Integer)
-    peso_g = Column(Float)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_id: Mapped[str] = mapped_column(String(64), index=True)
+    ts: Mapped["datetime"] = mapped_column(DateTime, index=True)
 
-
-class Alert(Base):
-    __tablename__ = "alerts"
-    id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime, server_default=func.now())
-    device_id = Column(String(64), index=True, nullable=False)
-    kind = Column(String(32), nullable=False) # e.g., temp, hum, peso
-    message = Column(String(255), nullable=False)
-    severity = Column(String(16), nullable=False) # info/warn/crit
-    measurement_id = Column(Integer, nullable=True)
+    temp_piel_c: Mapped[float | None] = mapped_column(Float)
+    temp_aire_c: Mapped[float | None] = mapped_column(Float)
+    humedad:     Mapped[float | None] = mapped_column(Float)
+    luz:         Mapped[float | None] = mapped_column(Float)
+    ntc_c:       Mapped[float | None] = mapped_column(Float)
+    ntc_raw:     Mapped[int | None]   = mapped_column(Integer)
+    peso_g:      Mapped[float | None] = mapped_column(Float)

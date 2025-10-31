@@ -1,17 +1,13 @@
-from app.settings import settings
-
-
-def test_ingest_ok(client):
-    payload = {
-        "device_id": "esp32s3-incu-01",
-        "ts_ms": 1700000000000,
-        "temperatura": 36.7,
-        "humedad": 55.0,
-        "luz": 100,
-        "ntc_c": 36.5,
-        "ntc_raw": 2000,
-        "peso_g": 3200.0,
-    }
-    r = client.post("/api/incubadora/ingest", json=payload, headers={"X-API-KEY": settings.api_key})
+def test_ingest_aliases(client):
+    # payload ?viejo?
+    r = client.post("/api/incubadora/ingest", json={
+        "id":"esp32-1","temperatura":35.1,"humedad_rel":52,"als":120,"peso":3200
+    })
     assert r.status_code == 200
-    assert r.json()["ok"] is True
+
+    # payload ?nuevo?
+    r = client.post("/api/incubadora/ingest", json={
+        "device_id":"esp32-2","temp_piel_c":36.6,"temp_aire_c":34.9,
+        "humedad":55,"luz":110,"ntc_c":36.1,"peso_g":3180
+    })
+    assert r.status_code == 200
