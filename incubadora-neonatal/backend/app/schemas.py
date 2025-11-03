@@ -1,84 +1,45 @@
-# incubadora-neonatal/backend/app/schemas.py
+# backend/app/schemas.py
 from __future__ import annotations
-from pydantic import BaseModel, field_validator
-from typing import Optional
-from datetime import datetime
-
-def _coerce_ts(v):
-    if v is None:
-        return datetime.utcnow()
-    if isinstance(v, (int, float)):
-        # epoch s / ms
-        return datetime.utcfromtimestamp(v/1000.0 if v > 1e12 else v)
-    if isinstance(v, str):
-        try:
-            return datetime.fromisoformat(v.replace("Z", "+00:00"))
-        except Exception:
-            return datetime.utcnow()
-    return datetime.utcnow()
+from datetime import datetime, timezone
+from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
 
 class IngestPayload(BaseModel):
-    # id (acepta varias)
+    # Formato Marsupia (WiFi) y/o puente BLE normalizado
     device_id: Optional[str] = None
-    id: Optional[str] = None
-    mac: Optional[str] = None
-    device: Optional[str] = None
-
-    # tiempo
-    ts: Optional[datetime] = None
-    timestamp: Optional[float | str] = None
-
-    # preferidos (nuevo firmware)
-    temp_piel_c: Optional[float] = None
-    temp_aire_c: Optional[float] = None
-    humedad: Optional[float] = None
+    tAir: Optional[float] = None
+    tSkin: Optional[float] = None
+    rh: Optional[float] = None
+    kg: Optional[float] = None
     luz: Optional[float] = None
-    ntc_c: Optional[float] = None
-    ntc_raw: Optional[int] = None
+    alerts: Optional[int] = 0
+    set_control: Optional[int] = None
+
+    # También admitimos nombres ya normalizados desde frontend BLE:
+    temp_aire_c: Optional[float] = None
+    temp_piel_c: Optional[float] = None
+    humedad: Optional[float] = None
     peso_g: Optional[float] = None
 
-    # alias ?viejos?
-    temperatura: Optional[float] = None
-    humedad_rel: Optional[float] = None
-    rh: Optional[float] = None
-    als: Optional[float] = None
-    light: Optional[float] = None
-    peso: Optional[float] = None
-    t_skin: Optional[float] = None
-    t_piel: Optional[float] = None
-    t_air: Optional[float] = None
-    t_aire: Optional[float] = None
-    ntcC: Optional[float] = None  # por si el firmware manda ntcCelsius
+    ts: Optional[datetime] = None
+    device: Optional[str] = Field(None, description="origen opcional")
 
-    @field_validator("ts", mode="before")
-    @classmethod
-    def _v_ts(cls, v):
-        return _coerce_ts(v)
-
-    def normalize(self) -> dict:
-        # id
-        did = self.device_id or self.id or self.mac or self.device or "esp32-unknown"
-
-        # temps (si solo viene `temperatura`, se asume AIRE)
-        t_skin = self.temp_piel_c or self.t_skin or self.t_piel
-        t_air  = self.temp_aire_c or self.t_air or self.t_aire or self.temperatura
-
-        # humedad / luz / peso
-        hum = self.humedad or self.humedad_rel or self.rh
-        lux = self.luz or self.als or self.light
-        peso = self.peso_g or self.peso
-
-        # ntc
-        ntc_c = self.ntc_c or self.ntcC
-
+    def normalize(self) -> Dict[str, Any]:
+        aire = self.temp_aire_c if self.temp_aire_c is not None else self.tAir
+        piel = self.temp_piel_c if self.temp_piel_c is not None else self.tSkin
+        hum  = self.humedad if self.humedad is not None else self.rh
+        g    = self.peso_g if self.peso_g is not None else (self.kg*1000.0 if self.kg is not None else None)
+        dev  = self.device_id or self.device or "unknown"
         return {
-            "device_id": did,
-            "ts": self.ts or _coerce_ts(self.timestamp),
-            "temp_piel_c": t_skin,
-            "temp_aire_c": t_air,
+            "device_id": dev,
+            "ts": self.ts or datetime.now(timezone.utc),
+            "temp_piel_c": piel,
+            "temp_aire_c": aire,
             "humedad": hum,
-            "luz": lux,
-            "ntc_c": ntc_c,
-            "ntc_raw": self.ntc_raw,
-            "peso_g": peso,
+            "luz": self.luz,
+            "ntc_c": None,
+            "ntc_raw": None,
+            "peso_g": g,
+            "set_control": self.set_control,
+            "alerts": self.alerts or 0,
         }

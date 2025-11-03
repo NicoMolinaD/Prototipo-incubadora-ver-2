@@ -1,22 +1,17 @@
-# incubadora-neonatal/backend/app/routers/ingest.py
-from fastapi import APIRouter, Header
+# backend/app/routers/ingest.py
+from __future__ import annotations
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from ..models import Base, Measurement
+from ..db import get_session
+from ..models import Measurement
 from ..schemas import IngestPayload
-from ..settings import settings
 
 router = APIRouter(prefix="/api/incubadora", tags=["ingest"])
 
-engine = create_engine(settings.DATABASE_URL, future=True)
-Base.metadata.create_all(engine)
-
 @router.post("/ingest")
-def ingest(p: IngestPayload, x_device_id: str | None = Header(default=None)):
-    data = p.normalize()
-    if x_device_id:
-        data["device_id"] = x_device_id
-    with Session(engine) as s:
-        s.add(Measurement(**data))
-        s.commit()
-    return {"ok": True}
+def ingest(payload: IngestPayload, db: Session = Depends(get_session)):
+    row = Measurement(**payload.normalize())
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"ok": True, "id": row.id}

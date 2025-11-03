@@ -1,6 +1,32 @@
 services:
-  api:
+  db:
+    image: postgres:16
+    container_name: incubadora_db
     environment:
-      - DATABASE_URL=sqlite:///./incubadora.db
+      POSTGRES_USER: incu
+      POSTGRES_PASSWORD: incu
+      POSTGRES_DB: incubadora
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incu -d incubadora"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: incubadora_api
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  db_data:

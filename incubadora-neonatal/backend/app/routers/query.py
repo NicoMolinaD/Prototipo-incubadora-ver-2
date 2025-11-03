@@ -1,54 +1,59 @@
-# incubadora-neonatal/backend/app/routers/query.py
-from fastapi import APIRouter, Query
+# backend/app/routers/query.py
+from __future__ import annotations
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine, text
-from ..models import Base
-from ..settings import settings
-import datetime as dt
+from sqlalchemy import select, func, desc
+from ..db import get_session
+from ..models import Measurement
 
 router = APIRouter(prefix="/api", tags=["query"])
-engine = create_engine(settings.DATABASE_URL, future=True)
-Base.metadata.create_all(engine)
 
 @router.get("/devices")
-def devices():
-    with Session(engine) as s:
-        rows = s.execute(text("""
-          SELECT device_id,
-                 MAX(ts) AS last_seen,
-                 AVG(temp_piel_c) AS temp_piel_c,
-                 AVG(temp_aire_c) AS temp_aire_c,
-                 AVG(humedad) AS humedad,
-                 AVG(luz) AS luz,
-                 AVG(peso_g) AS peso_g
-          FROM measurements
-          GROUP BY device_id
-        """)).mappings().all()
-    now = dt.datetime.utcnow()
-    out = []
-    for r in rows:
-        online = (now - r["last_seen"]).total_seconds() < 300 if r["last_seen"] else False
-        out.append({
-            "device_id": r["device_id"],
-            "last_seen": r["last_seen"].isoformat()+"Z" if r["last_seen"] else None,
-            "status": "online" if online else "offline",
+def devices(db: Session = Depends(get_session)):
+    sub = (
+        select(Measurement.device_id, func.max(Measurement.ts).label("last_seen"))
+        .group_by(Measurement.device_id)
+        .subquery()
+    )
+    q = (
+        select(
+            sub.c.device_id,
+            sub.c.last_seen,
+            Measurement.temp_aire_c,
+            Measurement.temp_piel_c,
+            Measurement.humedad,
+            Measurement.luz,
+            Measurement.peso_g,
+        )
+        .join(Measurement, (Measurement.device_id == sub.c.device_id) & (Measurement.ts == sub.c.last_seen))
+        .order_by(sub.c.device_id)
+    )
+    rows = db.execute(q).all()
+    return [
+        {
+            "device_id": r.device_id,
+            "last_seen": r.last_seen.isoformat() if r.last_seen else None,
+            "status": "online",
             "metrics": {
-                "temp_piel_c": r["temp_piel_c"],
-                "temp_aire_c": r["temp_aire_c"],
-                "humedad": r["humedad"],
-                "luz": r["luz"],
-                "peso_g": r["peso_g"],
-            }
-        })
-    return out
+                "temp_aire_c": r.temp_aire_c,
+                "temp_piel_c": r.temp_piel_c,
+                "humedad": r.humedad,
+                "luz": r.luz,
+                "peso_g": r.peso_g,
+            },
+        }
+        for r in rows
+    ]
 
 @router.get("/incubadora/latest")
-def latest(limit: int = Query(50, ge=1, le=500), device_id: str | None = None):
-    q = "SELECT * FROM measurements "
-    params = {"limit": limit}
+def latest(limit: int = Query(50, ge=1, le=500), device_id: str | None = None, db: Session = Depends(get_session)):
+    stmt = select(Measurement).order_by(desc(Measurement.ts)).limit(limit)
     if device_id:
-        q += "WHERE device_id = :device_id "
-        params["device_id"] = device_id
-    q += "ORDER BY ts DESC LIMIT :limit"
-    with Session(engine) as s:
-        return s.execute(text(q), params).mappings().all()
+        stmt = stmt.filter(Measurement.device_id == device_id)
+    rows = db.execute(stmt).scalars().all()
+    return [{
+        "id": r.id, "device_id": r.device_id, "ts": r.ts.isoformat(),
+        "temp_aire_c": r.temp_aire_c, "temp_piel_c": r.temp_piel_c,
+        "humedad": r.humedad, "luz": r.luz, "peso_g": r.peso_g,
+        "set_control": r.set_control, "alerts": r.alerts
+    } for r in rows]

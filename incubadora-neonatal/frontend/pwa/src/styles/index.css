@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Componentes utilitarios */
+.card {
+  @apply bg-white border border-slate-200 rounded-xl p-4 shadow-sm;
+}
+.btn {
+  @apply inline-flex items-center px-3 py-2 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-sm;
+}
