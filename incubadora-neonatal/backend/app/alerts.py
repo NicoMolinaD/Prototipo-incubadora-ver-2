@@ -1,40 +1,58 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, desc
 from sqlalchemy.orm import Session
-from .models import Alert, Measurement
 
+from .db import get_db
+from . import models
+from .schemas import AlertRow
 
-# Reglas simples: ajusta rangos según clínica
-TEMP_RANGE = (36.5, 37.5)
-HUM_RANGE = (40.0, 65.0)
+router = APIRouter(prefix="/api/incubadora", tags=["alerts"])
 
+ALERT_LABELS = [
+    ("overtemp", 1),
+    ("airflow_fail", 2),
+    ("sensor_fail", 4),
+    ("program_fail", 8),
+    ("bad_posture", 16),
+]
 
+def decode(mask: int) -> list[str]:
+    out: list[str] = []
+    for name, bit in ALERT_LABELS:
+        if mask & bit:
+            out.append(name)
+    return out
 
+@router.get("/alerts", response_model=List[AlertRow])
+def recent_alerts(
+    device_id: Optional[str] = None,
+    since_minutes: Optional[int] = Query(default=24*60, ge=1, le=60*24*14),
+    limit: int = Query(default=200, ge=1, le=1000),
+    db: Session = Depends(get_db),
+):
+    start = None
+    if since_minutes is not None:
+        start = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
 
-def evaluate_and_create_alerts(db: Session, m: Measurement) -> list[Alert]:
-    alerts: list[Alert] = []
+    stmt = select(models.Measurement).where(models.Measurement.alerts != None)
+    if device_id:
+        stmt = stmt.where(models.Measurement.device_id == device_id)
+    if start:
+        stmt = stmt.where(models.Measurement.ts >= start)
+    stmt = stmt.order_by(desc(models.Measurement.ts)).limit(limit)
 
-
-    def add(kind: str, msg: str, severity: str = "warn"):
-        alert = Alert(device_id=m.device_id, kind=kind, message=msg,
-        severity=severity, measurement_id=m.id)
-        db.add(alert)
-        alerts.append(alert)
-
-
-        if m.temperatura is not None:
-            lo, hi = TEMP_RANGE
-        if m.temperatura < lo or m.temperatura > hi:
-            add("temp", f"Temperatura fuera de rango: {m.temperatura:.2f}°C","crit")
-
-
-        if m.humedad is not None:
-            lo, hi = HUM_RANGE
-        if m.humedad < lo or m.humedad > hi:
-            add("hum", f"Humedad fuera de rango: {m.humedad:.1f}%", "warn")
-
-
-        # Ejemplo: peso negativo o caída abrupta (simple)
-        if m.peso_g is not None and m.peso_g < 0:
-            add("peso", f"Lectura de peso inválida: {m.peso_g:.2f} g", "warn")
-
-
-        return alerts
+    rows = db.execute(stmt).scalars().all()
+    return [
+        AlertRow(
+            ts=r.ts,
+            device_id=r.device_id,
+            alerts=r.alerts or 0,
+            labels=decode(r.alerts or 0),
+        )
+        for r in rows
+    ]

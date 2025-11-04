@@ -21,12 +21,19 @@ services:
     build: .
     container_name: incubadora_api
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://incu:incu@db:5432/incu
+      API_TITLE: Incubadora API
+      API_VERSION: v0.1.0
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+
     depends_on:
       db:
         condition: service_healthy
     ports:
       - "8000:8000"
     restart: unless-stopped
+
 
 volumes:
   db_data:

@@ -1,8 +1,14 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
+
 import LiveDataPage from "./pages/LiveDataPage";
 import DataManagementPage from "./pages/DataManagementPage";
+import DashboardsPage from "./pages/DashboardsPage";
+import DevicesPage from "./pages/DevicesPage";
+import AlertsPage from "./pages/AlertsPage";
+import ModelsPage from "./pages/ModelsPage";
+import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
   const loc = useLocation();
@@ -15,14 +21,14 @@ export default function App() {
           <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-6xl">
             <Routes>
               <Route path="/" element={<Navigate to="/live" replace />} />
+              <Route path="/dashboards" element={<DashboardsPage />} />
               <Route path="/live" element={<LiveDataPage />} />
+              <Route path="/devices" element={<DevicesPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/models" element={<ModelsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/data" element={<DataManagementPage />} />
-              {/* placeholders para otras secciones */}
-              <Route path="/dashboards" element={<div className="card">Dashboards (placeholder)</div>} />
-              <Route path="/devices" element={<div className="card">Dispositivos (placeholder)</div>} />
-              <Route path="/alerts" element={<div className="card">Alertas (placeholder)</div>} />
-              <Route path="/models" element={<div className="card">Modelos (placeholder)</div>} />
-              <Route path="/settings" element={<div className="card">Configuración (placeholder)</div>} />
+              <Route path="*" element={<div className="card">404 - Ruta no encontrada</div>} />
             </Routes>
           </div>
         </main>

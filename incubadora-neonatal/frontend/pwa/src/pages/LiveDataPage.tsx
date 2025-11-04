@@ -1,127 +1,95 @@
-import { useEffect, useState } from "react";
-import { getDevices, getLatest, postIngest, type DeviceRow } from "../api/client";
+import { useEffect, useMemo, useState } from "react";
+import { getDevices, getLatest, type DeviceRow, type MeasurementOut } from "../api/client";
+
+function fmt(x?: number | null, u = "") {
+  return x === null || x === undefined ? "--" : `${x.toFixed(1)}${u}`;
+}
 
 export default function LiveDataPage() {
   const [devices, setDevices] = useState<DeviceRow[]>([]);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [samples, setSamples] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [current, setCurrent] = useState<string>("");
+  const [latest, setLatest] = useState<MeasurementOut | null>(null);
 
+  // carga lista de dispositivos (sin cache)
   useEffect(() => {
-    let cancel = false;
+    let alive = true;
     (async () => {
       try {
-        const data = await getDevices();
-        if (!cancel) setDevices(data);
+        const rows = await getDevices();
+        if (!alive) return;
+        setDevices(rows);
+        if (!current && rows.length) setCurrent(rows[0].id);
       } catch (e) {
-        console.error(e);
+        console.error("getDevices failed", e);
       }
     })();
-    return () => { cancel = true; };
-  }, []);
+    const id = setInterval(() => {
+      getDevices().then((rows) => {
+        setDevices(rows);
+        if (!current && rows.length) setCurrent(rows[0].id);
+      }).catch(() => {});
+    }, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [current]);
 
+  // polling del ultimo valor
   useEffect(() => {
-    if (!selected) return;
-    (async () => {
-      setLoading(true);
+    if (!current) return;
+    let alive = true;
+    const tick = async () => {
       try {
-        const data = await getLatest(30, selected);
-        setSamples(data);
-      } finally {
-        setLoading(false);
+        const row = await getLatest(current);
+        if (alive) setLatest(row ?? null);
+      } catch (e) {
+        console.error("getLatest failed", e);
       }
-    })();
-  }, [selected]);
+    };
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [current]);
 
-  async function connectBLE() {
-    alert("Conexion BLE pendiente (placeholder).");
-    // ejemplo de envio al backend:
-    // await postIngest({ device_id: "ble:demo", temp_aire_c: 36.5, temp_piel_c: 36.0, humedad: 55, peso_g: 3200 });
-  }
+  const lastSeen = useMemo(() => latest?.ts ?? null, [latest]);
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Live Data</h1>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-medium">Puente BLE (Codigo_base)</h2>
-            <button onClick={connectBLE} className="btn">Conectar BLE</button>
-          </div>
-          <p className="text-sm text-slate-600">
-            Este boton conectara al ESP32 por Web Bluetooth (HTTPS/localhost) y reenviara las muestras al backend.
-          </p>
-        </div>
-
-        <div className="card">
-          <h2 className="text-lg font-medium mb-3">Dispositivos almacenados</h2>
-          {devices.length === 0 ? (
-            <div className="text-sm text-slate-500">Aun sin datos</div>
-          ) : (
-            <ul className="space-y-2">
-              {devices.map((d) => (
-                <li key={d.device_id}>
-                  <button
-                    onClick={() => setSelected(d.device_id)}
-                    className={
-                      "w-full text-left px-3 py-2 rounded-md border " +
-                      (selected === d.device_id
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white hover:bg-slate-50 border-slate-200")
-                    }
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">{d.device_id}</div>
-                      <div className="text-xs text-slate-500">{d.last_seen?.replace("T", " ").slice(0, 19)}</div>
-                    </div>
-                    <div className="text-xs text-slate-600 mt-1">
-                      Aire: {d.metrics.temp_aire_c ?? "?"}  Piel: {d.metrics.temp_piel_c ?? "?"}  H: {d.metrics.humedad ?? "?"}%  Peso: {d.metrics.peso_g ?? "?"} g
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+    <div className="p-4 space-y-4">
+      <div className="rounded-lg border p-4">
+        <div className="mb-2">Selecciona dispositivo</div>
+        <select
+          className="border rounded p-2"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        >
+          {devices.map((d) => (
+            <option key={d.id} value={d.id}>{d.id}</option>
+          ))}
+        </select>
+        <div className="text-sm mt-2">Last seen: {lastSeen ?? "--"}</div>
+        <div className="text-right text-xs">Actualiza cada 5 s</div>
       </div>
 
-      <div className="card">
-        <h2 className="text-lg font-medium mb-3">Ultimas muestras {selected ? `- ${selected}` : ""}</h2>
-        {loading ? (
-          <div className="text-sm text-slate-500">Cargando...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-slate-500">
-                  <th className="py-2 pr-4">TS</th>
-                  <th className="py-2 pr-4">Aire (C)</th>
-                  <th className="py-2 pr-4">Piel (C)</th>
-                  <th className="py-2 pr-4">H (%)</th>
-                  <th className="py-2 pr-4">Luz</th>
-                  <th className="py-2 pr-4">Peso (g)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {samples.map((s) => (
-                  <tr key={s.id} className="border-t border-slate-200">
-                    <td className="py-2 pr-4">{s.ts.replace("T", " ").slice(0, 19)}</td>
-                    <td className="py-2 pr-4">{s.temp_aire_c ?? "?"}</td>
-                    <td className="py-2 pr-4">{s.temp_piel_c ?? "?"}</td>
-                    <td className="py-2 pr-4">{s.humedad ?? "?"}</td>
-                    <td className="py-2 pr-4">{s.luz ?? "?"}</td>
-                    <td className="py-2 pr-4">{s.peso_g ?? "?"}</td>
-                  </tr>
-                ))}
-                {samples.length === 0 && (
-                  <tr><td className="py-2 text-slate-500" colSpan={6}>Selecciona un dispositivo.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="grid grid-cols-5 gap-4">
+        <Card title="TS">{latest?.ts ?? "--"}</Card>
+        <Card title="Aire (C)">{fmt(latest?.temp_aire_c)}</Card>
+        <Card title="Piel (C)">{fmt(latest?.temp_piel_c)}</Card>
+        <Card title="H (%)">{fmt(latest?.humedad)}</Card>
+        <Card title="Peso (g)">{fmt(latest?.peso_g)}</Card>
       </div>
+    </div>
+  );
+}
+
+function Card({ title, children }: { title: string; children: any }) {
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="text-sm mb-2">{title}</div>
+      <div className="text-2xl font-semibold">{children}</div>
     </div>
   );
 }

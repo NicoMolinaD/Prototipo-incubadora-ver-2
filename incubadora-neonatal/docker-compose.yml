@@ -4,39 +4,43 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: incubadora
       POSTGRES_USER: incu
-      POSTGRES_PASSWORD: incu123
+      POSTGRES_PASSWORD: incu
+      POSTGRES_DB: incu
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U incu -d incubadora"]
+      test: ["CMD-SHELL", "pg_isready -U incu -d incu"]
       interval: 3s
       timeout: 3s
       retries: 10
+    volumes:
+      - dbdata:/var/lib/postgresql/data
 
   api:
     build:
       context: ./backend
-    env_file:
-      - ./backend/.env
-    environment:
-      DATABASE_URL: postgresql+psycopg2://incu:incu123@db:5432/incubadora
+      dockerfile: Dockerfile
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - ./backend/.env
     ports:
       - "8000:8000"
+    restart: unless-stopped
 
   web:
     build:
       context: ./frontend/pwa
-    depends_on:
-      - api
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_BASE=http://127.0.0.1:8000
     ports:
       - "5173:5173"
+    depends_on:
+      - api
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  dbdata:

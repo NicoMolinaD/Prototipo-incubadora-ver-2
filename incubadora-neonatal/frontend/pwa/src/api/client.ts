@@ -1,44 +1,24 @@
-// frontend/pwa/src/api/client.ts
-export const API_BASE =
-  (import.meta as any).env?.VITE_API_BASE ||
-  `${location.protocol}//${location.hostname}:8000`;
+// src/api/client.ts (añade si faltan)
+const BASE = "/api/incubadora";
+const j = async (r: Response) => { if (!r.ok) throw new Error(await r.text()); return r.json(); };
 
-export type DeviceMetrics = {
-  temp_piel_c?: number | null;
-  temp_aire_c?: number | null;
-  humedad?: number | null;
-  luz?: number | null;
-  peso_g?: number | null;
-};
-
-export type DeviceRow = {
-  device_id: string;
-  last_seen: string | null;
-  status: "online" | "offline";
-  metrics: DeviceMetrics;
-};
-
-export async function getDevices(): Promise<DeviceRow[]> {
-  const r = await fetch(`${API_BASE}/api/devices`);
-  if (!r.ok) throw new Error(`devices ${r.status}`);
-  return r.json();
+// ya existentes:
+export async function ingest(p: any) {
+  return j(await fetch(`${BASE}/ingest`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(p) }));
 }
+export async function getDevices()        { return j(await fetch(`${BASE}/query/devices`)); }
+export async function getLatest(id: string) { return j(await fetch(`${BASE}/query/latest?device_id=${encodeURIComponent(id)}`)); }
 
-export async function getLatest(limit = 30, device_id?: string) {
-  const url = new URL(`${API_BASE}/api/incubadora/latest`);
-  url.searchParams.set("limit", String(limit));
-  if (device_id) url.searchParams.set("device_id", device_id);
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`latest ${r.status}`);
-  return r.json();
+// NUEVOS (para que el build no truene; pueden hablar con backend real o devolver vacío)
+export async function getSeries(params: {device_id?: string; since_minutes?: number; limit?: number}) {
+  const sp = new URLSearchParams();
+  if (params.device_id)     sp.set("device_id", params.device_id);
+  if (params.since_minutes) sp.set("since_minutes", String(params.since_minutes));
+  if (params.limit)         sp.set("limit", String(params.limit));
+  return j(await fetch(`${BASE}/query/series?${sp.toString()}`));
 }
-
-export async function postIngest(body: any) {
-  const r = await fetch(`${API_BASE}/api/incubadora/ingest`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error(`ingest ${r.status}`);
-  return r.json();
+export async function getAlerts(): Promise<any[]> { return []; }
+export async function getModelStatus(): Promise<any> {
+  return { name: "demo", version: "v0.0.0", trained: false, last_trained: null, notes: null };
 }
+export async function retrainModel(): Promise<{ok:true}> { return { ok: true }; }

@@ -1,59 +1,42 @@
-# backend/app/routers/query.py
+# app/routers/query.py
 from __future__ import annotations
-from fastapi import APIRouter, Depends, Query
+
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, desc
-from ..db import get_session
-from ..models import Measurement
+from sqlalchemy import func
 
-router = APIRouter(prefix="/api", tags=["query"])
+from ..db import get_db
+from .. import models, schemas  # <- tus modelos SQLAlchemy y Pydantic
 
-@router.get("/devices")
-def devices(db: Session = Depends(get_session)):
-    sub = (
-        select(Measurement.device_id, func.max(Measurement.ts).label("last_seen"))
-        .group_by(Measurement.device_id)
-        .subquery()
-    )
-    q = (
-        select(
-            sub.c.device_id,
-            sub.c.last_seen,
-            Measurement.temp_aire_c,
-            Measurement.temp_piel_c,
-            Measurement.humedad,
-            Measurement.luz,
-            Measurement.peso_g,
+router = APIRouter(prefix="/query", tags=["query"])
+
+@router.get("/devices", response_model=List[schemas.DeviceRow])
+def list_devices(db: Session = Depends(get_db)):
+    # Distintos device_id + último timestamp visto en la tabla de mediciones
+    rows = (
+        db.query(
+            models.Measurement.device_id.label("id"),
+            func.max(models.Measurement.ts).label("last_seen"),
         )
-        .join(Measurement, (Measurement.device_id == sub.c.device_id) & (Measurement.ts == sub.c.last_seen))
-        .order_by(sub.c.device_id)
+        .group_by(models.Measurement.device_id)
+        .order_by(models.Measurement.device_id)
+        .all()
     )
-    rows = db.execute(q).all()
+    # Ajuste de tipos para Pydantic (None/fecha)
     return [
-        {
-            "device_id": r.device_id,
-            "last_seen": r.last_seen.isoformat() if r.last_seen else None,
-            "status": "online",
-            "metrics": {
-                "temp_aire_c": r.temp_aire_c,
-                "temp_piel_c": r.temp_piel_c,
-                "humedad": r.humedad,
-                "luz": r.luz,
-                "peso_g": r.peso_g,
-            },
-        }
-        for r in rows
+        schemas.DeviceRow(id=row.id, last_seen=row.last_seen)
+        for row in rows
     ]
 
-@router.get("/incubadora/latest")
-def latest(limit: int = Query(50, ge=1, le=500), device_id: str | None = None, db: Session = Depends(get_session)):
-    stmt = select(Measurement).order_by(desc(Measurement.ts)).limit(limit)
-    if device_id:
-        stmt = stmt.filter(Measurement.device_id == device_id)
-    rows = db.execute(stmt).scalars().all()
-    return [{
-        "id": r.id, "device_id": r.device_id, "ts": r.ts.isoformat(),
-        "temp_aire_c": r.temp_aire_c, "temp_piel_c": r.temp_piel_c,
-        "humedad": r.humedad, "luz": r.luz, "peso_g": r.peso_g,
-        "set_control": r.set_control, "alerts": r.alerts
-    } for r in rows]
+@router.get("/latest", response_model=schemas.MeasurementOut)
+def latest(device_id: str, db: Session = Depends(get_db)):
+    m = (
+        db.query(models.Measurement)
+        .filter(models.Measurement.device_id == device_id)
+        .order_by(models.Measurement.ts.desc())
+        .first()
+    )
+    if not m:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return m  # Pydantic v2 con from_attributes en schemas.MeasurementOut

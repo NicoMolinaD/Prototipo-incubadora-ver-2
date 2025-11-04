@@ -1,23 +1,25 @@
-# backend/app/main.py
-from __future__ import annotations
+# app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import ingest, query
 from .settings import settings
+from .routers import ingest, query, alerts, models_router  # <- son APIRouter
 
-app = FastAPI(title="Incubadora API")
+app = FastAPI(title=settings.api_title, version=settings.api_version)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in settings.CORS_ALLOW_ORIGINS.split(",") if o.strip()],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(ingest.router)
-app.include_router(query.router)
+# IMPORTANTE: no uses .router aquí
+app.include_router(ingest)
+app.include_router(query)
+app.include_router(alerts)
+app.include_router(models_router)
 
-@app.get("/health")
-def health():
+@app.get("/healthz")
+def healthz():
     return {"ok": True}

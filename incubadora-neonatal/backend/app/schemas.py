@@ -1,45 +1,87 @@
-# backend/app/schemas.py
+# app/schemas.py
 from __future__ import annotations
-from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+
+
+
+# === Medidas ===
+class MeasurementBase(BaseModel):
+    device_id: str
+    ts: datetime
+
+    temp_piel_c: Optional[float] = None
+    temp_aire_c: Optional[float] = None
+    humedad: Optional[float] = None
+    luz: Optional[float] = None
+    ntc_raw: Optional[int] = None
+    ntc_c: Optional[float] = None
+    peso_g: Optional[float] = None
+    set_control: Optional[int] = None
+    alerts: Optional[int] = None
+
+    # para poder serializar desde ORM (SQLAlchemy)
+    model_config = {"from_attributes": True}
+
 
 class IngestPayload(BaseModel):
-    # Formato Marsupia (WiFi) y/o puente BLE normalizado
-    device_id: Optional[str] = None
-    tAir: Optional[float] = None
-    tSkin: Optional[float] = None
-    rh: Optional[float] = None
-    kg: Optional[float] = None
-    luz: Optional[float] = None
-    alerts: Optional[int] = 0
-    set_control: Optional[int] = None
-
-    # También admitimos nombres ya normalizados desde frontend BLE:
-    temp_aire_c: Optional[float] = None
-    temp_piel_c: Optional[float] = None
-    humedad: Optional[float] = None
-    peso_g: Optional[float] = None
-
+    device_id: str
     ts: Optional[datetime] = None
-    device: Optional[str] = Field(None, description="origen opcional")
 
-    def normalize(self) -> Dict[str, Any]:
-        aire = self.temp_aire_c if self.temp_aire_c is not None else self.tAir
-        piel = self.temp_piel_c if self.temp_piel_c is not None else self.tSkin
-        hum  = self.humedad if self.humedad is not None else self.rh
-        g    = self.peso_g if self.peso_g is not None else (self.kg*1000.0 if self.kg is not None else None)
-        dev  = self.device_id or self.device or "unknown"
-        return {
-            "device_id": dev,
-            "ts": self.ts or datetime.now(timezone.utc),
-            "temp_piel_c": piel,
-            "temp_aire_c": aire,
-            "humedad": hum,
-            "luz": self.luz,
-            "ntc_c": None,
-            "ntc_raw": None,
-            "peso_g": g,
-            "set_control": self.set_control,
-            "alerts": self.alerts or 0,
-        }
+    temp_piel_c: Optional[float] = None
+    temp_aire_c: Optional[float] = None
+    humedad: Optional[float] = None
+    luz: Optional[float] = None
+    ntc_raw: Optional[int] = None
+    ntc_c: Optional[float] = None
+    peso_g: Optional[float] = None
+    set_control: Optional[int] = None
+    alerts: Optional[int] = None
+
+
+class SeriesPoint(BaseModel):
+    ts: datetime
+    temp_piel_c: Optional[float] = None
+    temp_aire_c: Optional[float] = None
+    humedad: Optional[float] = None
+    luz: Optional[float] = None
+    peso_g: Optional[float] = None
+    alerts: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
+# === Alertas ===
+class AlertRow(BaseModel):
+    ts: datetime
+    device_id: Optional[str] = None
+    label: str
+    code: int
+
+
+# === Modelos (ML) ===
+class ModelStatus(BaseModel):
+    name: str
+    version: str
+    last_trained: Optional[datetime] = None
+    trained_by: Optional[str] = None
+    samples_used: Optional[int] = 0
+    notes: Optional[str] = None
+
+
+class DeviceRow(BaseModel):
+    id: str
+    last_seen: datetime | None = None
+
+class MeasurementOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)  # <- importante
+    device_id: str
+    ts: datetime
+    temp_aire_c: float | None = None
+    temp_piel_c: float | None = None
+    humedad: float | None = None
+    peso_g: float | None = None
