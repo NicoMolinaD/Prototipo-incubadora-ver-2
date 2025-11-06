@@ -1,11 +1,6 @@
 // frontend/pwa/src/api/types.ts
 export type ISODate = string;
 
-export interface DeviceRow {
-  id: string;
-  last_seen: ISODate | null;
-}
-
 export interface MeasurementOut {
   id: number;
   device_id: string;
@@ -23,6 +18,7 @@ export interface MeasurementOut {
 
 export interface SeriesPoint {
   ts: ISODate;
+  device_id?: string;
   temp_piel_c?: number | null;
   temp_aire_c?: number | null;
   humedad?: number | null;
@@ -30,6 +26,7 @@ export interface SeriesPoint {
   peso_g?: number | null;
   alerts?: number | null;
 }
+
 
 export interface IngestPayload {
   device_id: string;
@@ -48,16 +45,30 @@ export interface IngestPayload {
 export interface AlertRow {
   ts: ISODate;
   device_id?: string;
-  label: string;
-  code: number;
+  mask: number;
+  labels: string[];
+}
+
+export interface DeviceMetrics {
+  temp_aire_c?: number | null;
+  temp_piel_c?: number | null;
+  humedad?: number | null;
+  peso_g?: number | null;
+}
+
+export interface DeviceRow {
+  id: string;
+  last_seen: ISODate | null;
+  metrics?: DeviceMetrics | null;
 }
 
 /** Estado de los modelos de ML */
 export interface ModelStatus {
-  name: string;              // p.ej. "anomaly-detector"
-  version: string;           // p.ej. "v0.1.0"
-  last_trained: ISODate | null;
-  trained_by?: string | null;
-  samples_used?: number | null;
-  notes?: string | null;
+  algo: string;
+  version: string;
+  training: boolean;
+  updated_at: ISODate | null;
 }
+
+
+

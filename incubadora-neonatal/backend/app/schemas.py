@@ -1,13 +1,8 @@
 # app/schemas.py
 from __future__ import annotations
-
 from datetime import datetime
-from typing import Optional
-
+from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
-
-
-
 
 # === Medidas ===
 class MeasurementBase(BaseModel):
@@ -24,9 +19,7 @@ class MeasurementBase(BaseModel):
     set_control: Optional[int] = None
     alerts: Optional[int] = None
 
-    # para poder serializar desde ORM (SQLAlchemy)
     model_config = {"from_attributes": True}
-
 
 class IngestPayload(BaseModel):
     device_id: str
@@ -42,9 +35,15 @@ class IngestPayload(BaseModel):
     set_control: Optional[int] = None
     alerts: Optional[int] = None
 
-
 class SeriesPoint(BaseModel):
+    """
+    Data structure for a single time series sample.
+    It matches MeasurementOut except that the primary key id is omitted.
+    The device_id field is optional because the client usually filters
+    by a specific device when requesting series data.
+    """
     ts: datetime
+    device_id: Optional[str] = None
     temp_piel_c: Optional[float] = None
     temp_aire_c: Optional[float] = None
     humedad: Optional[float] = None
@@ -52,36 +51,46 @@ class SeriesPoint(BaseModel):
     peso_g: Optional[float] = None
     alerts: Optional[int] = None
 
-    model_config = {"from_attributes": True}
-
+    model_config = ConfigDict(from_attributes=True)
 
 # === Alertas ===
 class AlertRow(BaseModel):
     ts: datetime
     device_id: Optional[str] = None
-    label: str
-    code: int
-
+    mask: int
+    labels: List[str]
 
 # === Modelos (ML) ===
 class ModelStatus(BaseModel):
-    name: str
+    algo: str
     version: str
-    last_trained: Optional[datetime] = None
-    trained_by: Optional[str] = None
-    samples_used: Optional[int] = 0
-    notes: Optional[str] = None
+    training: bool = False
+    updated_at: Optional[datetime] = None
 
+class DeviceMetrics(BaseModel):
+    temp_aire_c: Optional[float] = None
+    temp_piel_c: Optional[float] = None
+    humedad: Optional[float] = None
+    peso_g: Optional[float] = None
 
 class DeviceRow(BaseModel):
     id: str
-    last_seen: datetime | None = None
+    last_seen: Optional[datetime] = None
+    metrics: Optional["DeviceMetrics"] = None
+
 
 class MeasurementOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)  # <- importante
+    model_config = ConfigDict(from_attributes=True)
+    id: int
     device_id: str
     ts: datetime
-    temp_aire_c: float | None = None
     temp_piel_c: float | None = None
+    temp_aire_c: float | None = None
     humedad: float | None = None
+    luz: float | None = None
+    ntc_raw: int | None = None
+    ntc_c: float | None = None
     peso_g: float | None = None
+    set_control: int | None = None
+    alerts: int | None = None
+

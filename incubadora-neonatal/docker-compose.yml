@@ -34,13 +34,17 @@ services:
     build:
       context: ./frontend/pwa
       dockerfile: Dockerfile
+      args:
+        # Usa localhost:8000 para que las peticiones desde el navegador
+        # alcancen el contenedor API a traves del puerto publicado.
+        VITE_API_BASE: http://localhost:8000
     environment:
-      - VITE_API_BASE=http://127.0.0.1:8000
-    ports:
-      - "5173:5173"
+      - VITE_API_BASE=http://localhost:8000
     depends_on:
       - api
-    restart: unless-stopped
+    ports:
+      - "5173:5173"
+
 
 volumes:
   dbdata:
