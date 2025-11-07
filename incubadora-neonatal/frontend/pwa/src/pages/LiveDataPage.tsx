@@ -1,39 +1,61 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getDevices, getLatest, type DeviceRow, type MeasurementOut } from "../api/client";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { getDevices, getLatest, ingest } from "../api/client";
+import type { DeviceRow, MeasurementOut } from "../api/types";
 
-function fmt(x?: number | null, u = "") {
+// Formatea numeros o muestra "--"
+function fmt(x?: number | null, u = ""): string {
   return x === null || x === undefined ? "--" : `${x.toFixed(1)}${u}`;
 }
 
-// PRUEBA A: invertir RX/TX
-const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-//const RX_UUID      = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // write
-//const TX_UUID      = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // notify
+// Alias minimo para UUID de servicios BLE (evitamos depender de tipos DOM que faltan)
+type BtServiceUUID = number | string;
+const SERVICE_UUID: BtServiceUUID =
+  "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 
-
-/** Convierte una línea de texto BLE en campos que la UI ya usa. Ajusta claves según tu firmware. */
+/**
+ * Convierte una linea recibida por BLE en campos de telemetria.
+ * Busca "Temp Air", "Air", "Skin", "RH", "uHum" y "Weight".
+ */
 function parseBleLine(s: string): Partial<MeasurementOut> {
-  // Ejemplo esperado: "Peso:123.4,Temp:36.8,Hum:55.2,Set:38"
-  const m: Record<string, string> = {};
-  s.split(",").forEach(pair => {
-    const [k, v] = pair.split(":");
-    if (k && v) m[k.trim().toLowerCase()] = v.trim();
-  });
-
-  const nowIso = new Date().toISOString();
-
-  // Mapea nombres del firmware → MeasurementOut
-  // Ajusta si tu firmware usa otros (p. ej. "temp_aire" / "temp_piel")
   const partial: Partial<MeasurementOut> = {
-    ts: nowIso,
+    ts: new Date().toISOString(),
   };
 
-  if (m["peso"]) partial.peso_g = Number(m["peso"]);
-  if (m["hum"])  partial.humedad = Number(m["hum"]);
-  // Si tu firmware manda una sola "Temp", decide a cuál mapear:
-  if (m["temp"]) partial.temp_aire_c = Number(m["temp"]);
-  if (m["temp_aire"]) partial.temp_aire_c = Number(m["temp_aire"]);
-  if (m["temp_piel"]) partial.temp_piel_c = Number(m["temp_piel"]);
+  const airMatch = s.match(/\b(?:temp\s*)?air\s*[:\s]+([\d.]+)/i);
+  if (airMatch) {
+    const v = parseFloat(airMatch[1]);
+    if (!Number.isNaN(v)) partial.temp_aire_c = v;
+  }
+
+  const skinMatch = s.match(/\bskin\s*[:\s]+([\d.]+)/i);
+  if (skinMatch) {
+    const v = parseFloat(skinMatch[1]);
+    if (!Number.isNaN(v)) partial.temp_piel_c = v;
+  }
+
+  const rhMatch = s.match(/\brh\s*[:\s]+([\d.]+)/i);
+  if (rhMatch) {
+    const v = parseFloat(rhMatch[1]);
+    if (!Number.isNaN(v)) partial.humedad = v;
+  }
+
+  const uhMatch = s.match(/\buhum\s*[:\s]+([\d.]+)/i);
+  if (uhMatch) {
+    const v = parseFloat(uhMatch[1]);
+    if (!Number.isNaN(v)) partial.humedad = v;
+  }
+
+  const weightMatch = s.match(/\bweight\s*[:\s]+([\d.]+)/i);
+  if (weightMatch) {
+    const v = parseFloat(weightMatch[1]);
+    if (!Number.isNaN(v)) partial.peso_g = v * 1000;
+  }
 
   return partial;
 }
@@ -43,44 +65,46 @@ export default function LiveDataPage() {
   const [current, setCurrent] = useState<string>("");
   const [latest, setLatest] = useState<MeasurementOut | null>(null);
 
-  // BLE state/refs
+  // Estado y refs BLE
   const [bleConnected, setBleConnected] = useState(false);
   const deviceRef = useRef<BluetoothDevice | null>(null);
   const txRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const rxRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
-  const [lastBleMsg, setLastBleMsg] = useState<string>("");
+  const [lastBleMsg, setLastBleMsg] = useState("");
 
-  /* ------------------- cargar lista de dispositivos (poll 5s) ------------------- */
+  // Poll de dispositivos (cada 5 s)
   useEffect(() => {
     let alive = true;
-    (async () => {
+
+    const load = async () => {
       try {
         const rows = await getDevices();
         if (!alive) return;
         setDevices(rows);
-        if (!current && rows.length) setCurrent(rows[0].id);
+        setCurrent((cur) => cur || rows[0]?.id || "");
       } catch (e) {
         console.error("getDevices failed", e);
       }
-    })();
-    const id = setInterval(() => {
-      getDevices()
-        .then((rows) => {
-          setDevices(rows);
-          if (!current && rows.length) setCurrent(rows[0].id);
-        })
-        .catch(() => {});
-    }, 5000);
+    };
+
+    load();
+    const id = setInterval(load, 5000);
+
     return () => {
       alive = false;
       clearInterval(id);
     };
-  }, [current]);
+  }, []);
 
-  /* ------------------- polling último valor backend (cada 5s) ------------------- */
+  // Poll del ultimo valor del backend (cada 5 s)
   useEffect(() => {
-    if (!current) return;
+    if (!current) {
+      setLatest(null);
+      return;
+    }
+
     let alive = true;
+
     const tick = async () => {
       try {
         const row = await getLatest(current);
@@ -89,102 +113,107 @@ export default function LiveDataPage() {
         console.error("getLatest failed", e);
       }
     };
+
     tick();
     const id = setInterval(tick, 5000);
+
     return () => {
       alive = false;
       clearInterval(id);
     };
   }, [current]);
 
-  /* ------------------- BLE: conectar / desconectar / enviar ------------------- */
+  // Manejador de notificaciones BLE
   const onNotify = useCallback((ev: Event) => {
-    const c = ev.target as BluetoothRemoteGATTCharacteristic;
+    const c = ev.target as BluetoothRemoteGATTCharacteristic | null;
     const dv = c?.value;
     if (!dv) return;
+
     const text = new TextDecoder().decode(dv.buffer);
     setLastBleMsg(text);
+
     const partial = parseBleLine(text);
-    setLatest((prev) => ({ ...(prev ?? ({} as MeasurementOut)), ...partial }));
-    // console.log("BLE ►", text, partial);
+
+    setLatest((prev) => {
+      return { ...(prev ?? {}), ...partial } as MeasurementOut;
+    });
+
+    const deviceId = deviceRef.current?.id ?? "esp32";
+    ingest({ device_id: deviceId, ...partial } as any).catch((err) => {
+      console.error("ingest failed", err);
+    });
   }, []);
 
-  const connectBLE = async () => {
-  const device = await navigator.bluetooth.requestDevice({
-    filters: [{ services: [SERVICE_UUID as BluetoothServiceUUID] }],
-    optionalServices: [SERVICE_UUID as BluetoothServiceUUID],
-    // Si falla, prueba:
-    // acceptAllDevices: true, optionalServices: [SERVICE_UUID as BluetoothServiceUUID],
-  });
-
-  const server  = await device.gatt!.connect();
-  const service = await server.getPrimaryService(SERVICE_UUID);
-  const chars   = await service.getCharacteristics();
-
-  // Ver en consola qué hay realmente
-  for (const c of chars) {
-    const p = c.properties;
-    console.log("Char:", c.uuid, {
-      read: p.read, write: p.write, writeNR: p.writeWithoutResponse,
-      notify: p.notify, indicate: p.indicate
-    });
-  }
-
-  // Elegir por PROPIEDADES
-  const txChar = chars.find(c => c.properties.notify || c.properties.indicate); // ESP32 -> Web
-  const rxChar = chars.find(c => c.properties.write  || c.properties.writeWithoutResponse); // Web -> ESP32
-
-  if (!txChar || !rxChar) {
-    throw new Error("No hay características con notify/indicate y write/writeNR en el servicio.");
-  }
-
-  // Notificaciones solo si están soportadas
-  if (txChar.properties.notify || txChar.properties.indicate) {
-    await txChar.startNotifications();
-    txChar.addEventListener("characteristicvaluechanged", (ev: Event) => {
-      const dv = (ev.target as BluetoothRemoteGATTCharacteristic).value!;
-      const text = new TextDecoder().decode(dv.buffer);
-      console.log("BLE ►", text);
-      // aquí puedes parsear y actualizar estado si quieres
-    });
-  } else {
-    throw new Error("La característica TX no soporta notificaciones/indicaciones.");
-  }
-
-  // Envío (usa writeNR si está disponible)
-  const send = async (msg: string) => {
-    const data = new TextEncoder().encode(msg);
-    if (rxChar.properties.writeWithoutResponse) {
-      await rxChar.writeValueWithoutResponse(data);
-    } else if (rxChar.properties.write) {
-      await rxChar.writeValue(data);
-    } else {
-      throw new Error("La característica RX no soporta escritura.");
-    }
-  };
-
-  // Ejemplo:
-  // await send("PING");
-};
-
-
-  const disconnectBLE = useCallback(() => {
+  // Conectar BLE
+  const connectBLE = useCallback(async () => {
     try {
-      const d = deviceRef.current;
-      if (d?.gatt?.connected) d.gatt.disconnect();
-      setBleConnected(false);
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [SERVICE_UUID as any] }],
+        optionalServices: [SERVICE_UUID as any],
+      } as any);
+
+      const server = await device.gatt!.connect();
+      const service = await server.getPrimaryService(SERVICE_UUID as any);
+
+      const chars: BluetoothRemoteGATTCharacteristic[] =
+        await (service as any).getCharacteristics();
+
+      const txChar =
+        chars.find(
+          (c: any) => c.properties.notify || c.properties.indicate
+        ) || null;
+      const rxChar =
+        chars.find(
+          (c: any) =>
+            c.properties.write || c.properties.writeWithoutResponse
+        ) || null;
+
+      if (!txChar || !rxChar) {
+        throw new Error(
+          "No hay caracteristicas notify/indicate y write/writeNR en el servicio"
+        );
+      }
+
+      await txChar.startNotifications();
+      txChar.addEventListener(
+        "characteristicvaluechanged",
+        onNotify
+      );
+
+      deviceRef.current = device;
+      txRef.current = txChar;
+      rxRef.current = rxChar;
+      setBleConnected(true);
     } catch (e) {
       console.error(e);
+      alert("No se pudo conectar por Bluetooth");
+    }
+  }, [onNotify]);
+
+  // Desconectar BLE
+  const disconnectBLE = useCallback(() => {
+    try {
+      const d: any = deviceRef.current;
+      if (d?.gatt?.connected) {
+        d.gatt.disconnect();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBleConnected(false);
     }
   }, []);
 
+  // Enviar comando BLE
   const sendBLE = useCallback(async (msg: string) => {
     const rx = rxRef.current;
-    if (!rx) return alert("No hay conexión BLE.");
+    if (!rx) {
+      alert("No hay conexion BLE");
+      return;
+    }
     await rx.writeValue(new TextEncoder().encode(msg));
   }, []);
 
-  /* ------------------- helpers de UI ------------------- */
   const lastSeen = useMemo(() => latest?.ts ?? null, [latest]);
 
   return (
@@ -212,16 +241,28 @@ export default function LiveDataPage() {
             </button>
           ) : (
             <>
-              <button onClick={disconnectBLE} className="rounded border px-3 py-2">
+              <button
+                onClick={disconnectBLE}
+                className="rounded border px-3 py-2"
+              >
                 Desconectar BLE
               </button>
-              <button onClick={() => sendBLE("LED_ON")} className="rounded border px-3 py-2">
+              <button
+                onClick={() => sendBLE("LED_ON")}
+                className="rounded border px-3 py-2"
+              >
                 LED ON
               </button>
-              <button onClick={() => sendBLE("LED_OFF")} className="rounded border px-3 py-2">
+              <button
+                onClick={() => sendBLE("LED_OFF")}
+                className="rounded border px-3 py-2"
+              >
                 LED OFF
               </button>
-              <button onClick={() => sendBLE("SET:38")} className="rounded border px-3 py-2">
+              <button
+                onClick={() => sendBLE("SET:38")}
+                className="rounded border px-3 py-2"
+              >
                 SET 38
               </button>
             </>
@@ -230,7 +271,7 @@ export default function LiveDataPage() {
 
         {lastBleMsg && (
           <div className="mt-3">
-            <div className="text-sm opacity-70">Último mensaje BLE</div>
+            <div className="text-sm opacity-70">Ultimo mensaje BLE</div>
             <pre className="rounded border p-3 whitespace-pre-wrap break-words">
               {lastBleMsg}
             </pre>
@@ -249,7 +290,9 @@ export default function LiveDataPage() {
   );
 }
 
-function Card({ title, children }: { title: string; children: any }) {
+// Tarjeta sencilla
+function Card(props: { title: string; children: React.ReactNode }) {
+  const { title, children } = props;
   return (
     <div className="rounded-lg border p-4">
       <div className="text-sm mb-2">{title}</div>
