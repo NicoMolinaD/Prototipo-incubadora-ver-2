@@ -13,7 +13,8 @@ const API_ORIGIN =
     (import.meta as any).env.VITE_API_BASE &&
     (import.meta as any).env.VITE_API_BASE.trim()) ||
   "http://localhost:8000";
-const BASE = `${API_ORIGIN.replace(/\/+$/, "")}/api/incubadora`;
+const BASE = import.meta.env.VITE_API_BASE ?? "/api/incubadora";
+
 
 
 // Helper to unwrap JSON responses and surface HTTP errors.
