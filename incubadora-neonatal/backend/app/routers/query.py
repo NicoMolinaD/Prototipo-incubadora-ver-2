@@ -30,13 +30,14 @@ def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:
 
     result: List[schemas.DeviceRow] = []
     for entry in device_entries:
-        # Busca la última medición para rellenar metrics
+        # Última medición para rellenar metrics
         m = (
             db.query(models.Measurement)
             .filter(models.Measurement.device_id == entry.id)
             .order_by(models.Measurement.ts.desc())
             .first()
         )
+
         if m is not None:
             metrics = schemas.DeviceMetrics(
                 temp_aire_c=m.temp_aire_c,
@@ -45,13 +46,19 @@ def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:
                 peso_g=m.peso_g,
             )
         else:
-            # Si no hay datos, usa un objeto vacío
             metrics = schemas.DeviceMetrics()
+
+        # ? AQUÍ el cambio clave: datetime -> string ISO
+        last_seen_iso = entry.last_seen.isoformat() if entry.last_seen else None
+
         result.append(
-            schemas.DeviceRow(id=entry.id, last_seen=entry.last_seen, metrics=metrics)
+            schemas.DeviceRow(
+                id=entry.id,
+                last_seen=last_seen_iso,  # <? ya no es datetime
+                metrics=metrics,
+            )
         )
     return result
-
 
 
 @router.get("/latest", response_model=schemas.MeasurementOut)
