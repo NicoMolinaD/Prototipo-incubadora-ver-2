@@ -6,8 +6,6 @@ from .routers import ingest, query, alerts, models_router
 
 app = FastAPI(title="Incubadora API", version="v0.1.0")
 
-app = FastAPI(title=settings.api_title, version=settings.api_version)
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -17,10 +15,12 @@ app.add_middleware(
 )
 
 api = APIRouter(prefix="/api/incubadora")
-api.include_router(ingest.router)
-api.include_router(query.router)
-api.include_router(alerts.router)
-api.include_router(models_router.router)
+api.include_router(ingest)         # <? OJO: sin .router
+api.include_router(query)          #     idem
+api.include_router(alerts)
+api.include_router(models_router)
+
+app.include_router(api)
 @app.get("/healthz")
 def healthz():
     return {"ok": True}
