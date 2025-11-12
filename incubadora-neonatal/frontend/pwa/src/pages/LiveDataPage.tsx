@@ -309,9 +309,9 @@ export default function LiveDataPage() {
 
       <div className="grid grid-cols-5 gap-4">
         <Card title="TS">{latest?.ts ?? "--"}</Card>
-        <Card title="Aire (C)">{fmt(latest?.temp_aire_c)}</Card>
-        <Card title="Piel (C)">{fmt(latest?.temp_piel_c)}</Card>
-        <Card title="H (%)">{fmt(latest?.humedad)}</Card>
+        <Card title="Temp aire (°C)">{fmt(latest?.temp_aire_c)}</Card>
+        <Card title="Temp piel (°C)">{fmt(latest?.temp_piel_c)}</Card>
+        <Card title="Humedad (%)">{fmt(latest?.humedad)}</Card>
         <Card title="Peso (g)">{fmt(latest?.peso_g)}</Card>
       </div>
     </div>
