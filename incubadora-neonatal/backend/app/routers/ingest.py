@@ -23,7 +23,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -125,57 +125,60 @@ def _parse_text_payload(text: str) -> Dict[str, Any]:
 
 @router.post("/ingest")
 async def ingest(
-    payload: Any = Body(..., description="Measurement payload"),
+    request: Request,
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    Persist a new measurement to the database.
-
-    This endpoint accepts three kinds of payloads:
-
-    * A JSON object with canonical fields (``temp_aire_c``, etc.) or
-      legacy aliases (``id``, ``temperatura``, ``humedad_rel``, etc.).
-    * A plain text string emitted by the device over BLE/Wi?Fi.  The
-      router will attempt to extract known metrics from the string.
-    * A dict containing a ``text`` field ? useful for explicitly
-      submitting a raw payload alongside additional metadata.
-
-    The ``device_id`` must be provided either as a top?level key in
-    JSON or as a query parameter when sending a text payload.  When
-    omitted a default identifier of ``esp32`` is used.
+    Acepta:
+      - text/plain (líneas estilo: 'TEMP Air: 26.3 C | Skin: 34.2 C ...')
+      - application/json (con campos canónicos o alias)
     """
+    ctype = request.headers.get("content-type", "").lower()
+
     data: Dict[str, Any] = {}
-    # If payload is a dict-like structure (JSON)
-    if isinstance(payload, dict):
-        # If the dict contains a single 'text' field treat it as raw text
+
+    if "text/plain" in ctype:
+        # cuerpo como texto
+        raw = (await request.body()).decode("utf-8", errors="ignore")
+        data = _parse_text_payload(raw)
+
+    elif "application/json" in ctype:
+        try:
+            payload = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=422, detail="JSON object required")
+
+        # Si viene {"text": "..."} lo tratamos como texto crudo
         if list(payload.keys()) == ["text"] and isinstance(payload["text"], str):
             data = _parse_text_payload(payload["text"])
         else:
-            # Copy and map aliases
-            for key, value in payload.items():
-                canonical = ALIASES.get(key, key)
-                data[canonical] = value
-    elif isinstance(payload, str):
-        # Raw text body
-        data = _parse_text_payload(payload)
+            # mapear alias -> canónicos
+            for k, v in payload.items():
+                data[ALIASES.get(k, k)] = v
+
     else:
+        # cualquier otro content-type
         raise HTTPException(status_code=415, detail="Unsupported payload type")
 
-    # Ensure there is always a device identifier.  Use a default for BLE lines.
+    # Defaults
     if not data.get("device_id"):
         data["device_id"] = "esp32"
-    # Timestamp current UTC if not provided
     if not data.get("ts"):
         data["ts"] = datetime.now(timezone.utc)
-    # Validate using Pydantic; drop unknown fields
+
+    # Validar con Pydantic y persistir
     try:
         m_in = IngestPayload(**data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=str(e))
-    # Persist to database
+
     row = Measurement(**m_in.model_dump())
     db.add(row)
     db.commit()
     db.refresh(row)
-    # If SSE broadcasting is implemented in the future, call broadcast here
+
     return {"ok": True, "id": row.id}
+
