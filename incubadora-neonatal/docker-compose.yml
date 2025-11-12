@@ -31,20 +31,30 @@ services:
     restart: unless-stopped
 
   web:
-    build:
-      context: ./frontend/pwa
-      dockerfile: Dockerfile
-      args:
-        # Usa localhost:8000 para que las peticiones desde el navegador
-        # alcancen el contenedor API a traves del puerto publicado.
-        VITE_API_BASE: http://localhost:8000
-    environment:
-      - VITE_API_BASE=http://localhost:8000
+    build: ./frontend/pwa
     depends_on:
       - api
-    ports:
-      - "5173:5173"
+    expose:
+      - "5173"
+    # quita el "ports: 5173:5173" si solo se usará detrás de nginx
 
+    nginx:
+      image: nginx:alpine
+      container_name: incubadora-nginx
+      depends_on:
+        - web
+        - api
+      ports:
+        - "80:80"
+      volumes:
+        - ./ops/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+        # - ./ops/nginx/certs:/etc/nginx/certs:ro  # solo si luego vas a usar HTTPS
+      networks:
+        - default
+
+  networks:
+    default:
+      driver: bridge
 
 volumes:
   dbdata:
