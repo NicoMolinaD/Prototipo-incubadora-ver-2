@@ -128,11 +128,6 @@ async def ingest(
     request: Request,
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """
-    Acepta:
-      - text/plain (líneas estilo: 'TEMP Air: 26.3 C | Skin: 34.2 C ...')
-      - application/json (con campos canónicos o alias)
-    """
     ctype = request.headers.get("content-type", "").lower()
 
     data: Dict[str, Any] = {}
@@ -155,7 +150,6 @@ async def ingest(
         if list(payload.keys()) == ["text"] and isinstance(payload["text"], str):
             data = _parse_text_payload(payload["text"])
         else:
-            # mapear alias -> canónicos
             for k, v in payload.items():
                 data[ALIASES.get(k, k)] = v
 
