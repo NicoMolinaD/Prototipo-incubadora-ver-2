@@ -86,9 +86,22 @@ class DeviceRow(BaseModel):
     last_seen: Optional[str] = None
 
 class MeasurementOut(BaseModel):
-    ts: str
+    id: int
+    device_id: str
+    ts: datetime                      # <-- ANTES: str     AHORA: datetime
     temp_aire_c: Optional[float] = None
     temp_piel_c: Optional[float] = None
     humedad: Optional[float] = None
     peso_g: Optional[float] = None
+    set_control: Optional[str] = None
+    alerts: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)  # ORM ? Pydantic
+
+class SeriesPoint(BaseModel):
+    ts: datetime                      # <-- ANTES: str     AHORA: datetime
+    temp_aire_c: Optional[float] = None
+    temp_piel_c: Optional[float] = None
+    humedad: Optional[float] = None
+    peso_g: Optional[float] = None
+    model_config = ConfigDict(from_attributes=True)
 
