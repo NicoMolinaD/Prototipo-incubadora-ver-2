@@ -30,7 +30,8 @@ from ..db import get_db
 from ..models import Measurement
 from ..schemas import IngestPayload, MeasurementOut
 
-router = APIRouter(tags=["ingest"])
+router = APIRouter(prefix="/api/incubadora", tags=["ingest"])
+
 
 # Mapping of legacy or shorthand keys to canonical schema names.  When
 # receiving a JSON object the ingestion endpoint will rewrite keys

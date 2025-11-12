@@ -13,7 +13,52 @@ const API_ORIGIN =
     (import.meta as any).env.VITE_API_BASE &&
     (import.meta as any).env.VITE_API_BASE.trim()) ||
   "http://localhost:8000";
-const BASE = import.meta.env.VITE_API_BASE ?? "/api/incubadora";
+// frontend/pwa/src/api/client.ts
+const BASE =
+  (import.meta.env.VITE_API_BASE as string) ||
+  (location.origin + "/api/incubadora");
+
+async function j<T>(r: Response): Promise<T> {
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// Ingesta de medición (JSON que armamos en onNotify)
+export async function ingest(payload: {
+  device_id: string;
+  ts?: string;
+  temp_aire_c?: number;
+  temp_piel_c?: number;
+  humedad?: number;
+  peso_g?: number;
+}) {
+  const r = await fetch(`${BASE}/ingest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return j<{ ok: true; id: number }>(r);
+}
+
+// Lista de dispositivos para poblar el selector
+export async function getDevices() {
+  const r = await fetch(`${BASE}/query/devices`);
+  return j<{ id: string; last_seen: string | null }[]>(r);
+}
+
+// Última muestra por device_id (para las cards de Live Data)
+export async function getLatest(device_id: string) {
+  const r = await fetch(
+    `${BASE}/query/latest?device_id=${encodeURIComponent(device_id)}`
+  );
+  return j<{
+    ts: string;
+    temp_aire_c?: number | null;
+    temp_piel_c?: number | null;
+    humedad?: number | null;
+    peso_g?: number | null;
+  } | null>(r);
+}
 
 
 
@@ -26,26 +71,6 @@ const unwrapJson = async (response: Response) => {
   }
   return response.json();
 };
-
-export async function ingest(p: any) {
-  return unwrapJson(
-    await fetch(`${BASE}/ingest`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(p),
-    }),
-  );
-}
-
-export async function getDevices() {
-  return unwrapJson(await fetch(`${BASE}/query/devices`));
-}
-
-export async function getLatest(id: string) {
-  return unwrapJson(
-    await fetch(`${BASE}/query/latest?device_id=${encodeURIComponent(id)}`),
-  );
-}
 
 export async function getSeries(params: {
   device_id?: string;

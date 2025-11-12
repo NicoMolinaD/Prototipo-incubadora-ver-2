@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { getDevices, getLatest, ingest } from "../api/client";
 import type { DeviceRow, MeasurementOut } from "../api/types";
+import { parseFirmwareText } from "../lib/firmwareParser";
 
 // Formatea numeros o muestra "--"
 function fmt(x?: number | null, u = ""): string {
@@ -22,43 +23,57 @@ const SERVICE_UUID: BtServiceUUID =
  * Convierte una linea recibida por BLE en campos de telemetria.
  * Busca "Temp Air", "Air", "Skin", "RH", "uHum" y "Weight".
  */
-function parseBleLine(s: string): Partial<MeasurementOut> {
-  const partial: Partial<MeasurementOut> = {
+function parseBleLine(text: string): Partial<MeasurementOut> {
+  const out: Partial<MeasurementOut> = {
     ts: new Date().toISOString(),
   };
 
-  const airMatch = s.match(/\b(?:temp\s*)?air\s*[:\s]+([\d.]+)/i);
-  if (airMatch) {
-    const v = parseFloat(airMatch[1]);
-    if (!Number.isNaN(v)) partial.temp_aire_c = v;
+  // TEMP Air: 26.3 C  |  Air: 26.3 C
+  const mTempAir =
+    text.match(/TEMP\s*Air\s*:\s*([\d.]+)/i) ||
+    text.match(/\bAir\s*:\s*([\d.]+)/i);
+  if (mTempAir) {
+    const v = parseFloat(mTempAir[1]);
+    if (!Number.isNaN(v)) out.temp_aire_c = v;
   }
 
-  const skinMatch = s.match(/\bskin\s*[:\s]+([\d.]+)/i);
-  if (skinMatch) {
-    const v = parseFloat(skinMatch[1]);
-    if (!Number.isNaN(v)) partial.temp_piel_c = v;
+  // Skin: 34.0 C
+  const mSkin = text.match(/\bSkin\s*:\s*([\d.]+)/i);
+  if (mSkin) {
+    const v = parseFloat(mSkin[1]);
+    if (!Number.isNaN(v)) out.temp_piel_c = v;
   }
 
-  const rhMatch = s.match(/\brh\s*[:\s]+([\d.]+)/i);
-  if (rhMatch) {
-    const v = parseFloat(rhMatch[1]);
-    if (!Number.isNaN(v)) partial.humedad = v;
+  // RH: 68.4 %   o   Hum: 55.0 %
+  const mRh =
+    text.match(/\bRH\s*:\s*([\d.]+)/i) ||
+    text.match(/\bHum(?:idity)?\s*:\s*([\d.]+)/i);
+  if (mRh) {
+    const v = parseFloat(mRh[1]);
+    if (!Number.isNaN(v)) out.humedad = v;
   }
 
-  const uhMatch = s.match(/\buhum\s*[:\s]+([\d.]+)/i);
-  if (uhMatch) {
-    const v = parseFloat(uhMatch[1]);
-    if (!Number.isNaN(v)) partial.humedad = v;
+  // uHum: 0 %  (si quieres tratarlo igual que humedad)
+  const mUhum = text.match(/\buHum\s*:\s*([\d.]+)/i);
+  if (mUhum && out.humedad === undefined) {
+    const v = parseFloat(mUhum[1]);
+    if (!Number.isNaN(v)) out.humedad = v;
   }
 
-  const weightMatch = s.match(/\bweight\s*[:\s]+([\d.]+)/i);
-  if (weightMatch) {
-    const v = parseFloat(weightMatch[1]);
-    if (!Number.isNaN(v)) partial.peso_g = v * 1000;
+  // Weight / Peso opcional (solo si en algún momento lo envías)
+  const mWeight = text.match(/\bWeight\s*:\s*([\d.]+)/i);
+  if (mWeight) {
+    const v = parseFloat(mWeight[1]);
+    if (!Number.isNaN(v)) {
+      // si el ESP manda en kg:
+      out.peso_g = v * 1000;
+      // si manda en g directo, usa: out.peso_g = v;
+    }
   }
 
-  return partial;
+  return out;
 }
+
 
 export default function LiveDataPage() {
   const [devices, setDevices] = useState<DeviceRow[]>([]);
@@ -123,26 +138,39 @@ export default function LiveDataPage() {
     };
   }, [current]);
 
-  // Manejador de notificaciones BLE
   const onNotify = useCallback((ev: Event) => {
-    const c = ev.target as BluetoothRemoteGATTCharacteristic | null;
-    const dv = c?.value;
-    if (!dv) return;
+      const c = ev.target as BluetoothRemoteGATTCharacteristic | null;
+      const dv = c?.value;
+      if (!dv) return;
 
-    const text = new TextDecoder().decode(dv.buffer);
-    setLastBleMsg(text);
+      // 1) Texto crudo desde el ESP32
+      const text = new TextDecoder().decode(dv.buffer);
+      setLastBleMsg(text);
 
-    const partial = parseBleLine(text);
+      // 2) Lo convertimos a un objeto parcial con nuestros campos
+      const partial = parseBleLine(text);
 
-    setLatest((prev) => {
-      return { ...(prev ?? {}), ...partial } as MeasurementOut;
-    });
+      // Si no pudimos extraer nada útil, no molestamos al backend
+      const hasData = Object.keys(partial).length > 1 || partial.temp_aire_c !== undefined;
+      if (!hasData) return;
 
-    const deviceId = deviceRef.current?.id ?? "esp32";
-    ingest({ device_id: deviceId, ...partial } as any).catch((err) => {
-      console.error("ingest failed", err);
-    });
-  }, []);
+      // 3) Actualizar la UI con lo que tengamos nuevo
+      setLatest((prev) => ({ ...(prev ?? {}), ...partial } as MeasurementOut));
+
+      // 4) Construir JSON para el backend
+      const deviceId = deviceRef.current?.id ?? "esp32_demo";
+      const payload = {
+        device_id: deviceId,
+        ...partial,
+      };
+
+      // 5) Enviar al endpoint /ingest como JSON (esto ya lo hace ingest())
+      ingest(payload as any).catch((err) => {
+        console.error("ingest failed", err);
+      });
+    }, []);
+
+
 
   // Conectar BLE
   const connectBLE = useCallback(async () => {

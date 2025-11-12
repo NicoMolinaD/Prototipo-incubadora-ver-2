@@ -73,24 +73,22 @@ class DeviceMetrics(BaseModel):
     humedad: Optional[float] = None
     peso_g: Optional[float] = None
 
+class IngestIn(BaseModel):
+    device_id: str
+    ts: Optional[str] = None
+    temp_aire_c: Optional[float] = None
+    temp_piel_c: Optional[float] = None
+    humedad: Optional[float] = None
+    peso_g: Optional[float] = None
+
 class DeviceRow(BaseModel):
     id: str
-    last_seen: Optional[datetime] = None
-    metrics: Optional["DeviceMetrics"] = None
-
+    last_seen: Optional[str] = None
 
 class MeasurementOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    device_id: str
-    ts: datetime
-    temp_piel_c: float | None = None
-    temp_aire_c: float | None = None
-    humedad: float | None = None
-    luz: float | None = None
-    ntc_raw: int | None = None
-    ntc_c: float | None = None
-    peso_g: float | None = None
-    set_control: int | None = None
-    alerts: int | None = None
+    ts: str
+    temp_aire_c: Optional[float] = None
+    temp_piel_c: Optional[float] = None
+    humedad: Optional[float] = None
+    peso_g: Optional[float] = None
 
