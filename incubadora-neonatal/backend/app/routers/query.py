@@ -8,7 +8,7 @@ from sqlalchemy import func
 from ..db import get_db
 from .. import models, schemas
 
-router = APIRouter(prefix="/api/incubadora/query", tags=["query"])
+router = APIRouter(prefix="/query", tags=["query"])
 
 @router.get("/devices", response_model=List[schemas.DeviceRow])
 def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:

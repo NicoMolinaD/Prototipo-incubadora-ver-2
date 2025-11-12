@@ -30,7 +30,7 @@ from ..db import get_db
 from ..models import Measurement
 from ..schemas import IngestPayload, MeasurementOut
 
-router = APIRouter(prefix="/api/incubadora", tags=["ingest"])
+router = APIRouter(tags=["ingest"])
 
 
 # Mapping of legacy or shorthand keys to canonical schema names.  When
