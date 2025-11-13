@@ -25,6 +25,7 @@ interface ParsedBleData extends Partial<MeasurementOut> {
   sp_hum_pct?: number;
   current_mode?: string;
   adjust_target?: string;
+  light_mode?: string;
 }
 
 function parseBleLine(text: string): ParsedBleData {
@@ -62,8 +63,8 @@ function parseBleLine(text: string): ParsedBleData {
     if (!Number.isNaN(v)) out.humedad = v;
   }
 
-  // Weight: 3.10 kg
-  const mWeight = t.match(/\bWeight\s*:\s*([\d.]+)/i);
+  // Weight: 3.10 kg (puede estar en una linea separada)
+  const mWeight = t.match(/\bWeight\s*:\s*([\d.]+)\s*kg/i);
   if (mWeight) {
     const v = parseFloat(mWeight[1]);
     if (!Number.isNaN(v)) {
@@ -102,6 +103,12 @@ function parseBleLine(text: string): ParsedBleData {
   const mTarget = t.match(/\bTarget\s*:\s*(\w+)/i);
   if (mTarget) {
     out.adjust_target = mTarget[1].toUpperCase();
+  }
+
+  // Light: CIRC | ICT | PBM
+  const mLight = t.match(/\bLight\s*:\s*(\w+)/i);
+  if (mLight) {
+    out.light_mode = mLight[1].toUpperCase();
   }
 
   return out;
@@ -195,6 +202,15 @@ export default function LiveDataPage() {
       if (partial.sp_skin_c !== undefined) setSpSkin(partial.sp_skin_c);
       if (partial.sp_hum_pct !== undefined) setSpHum(partial.sp_hum_pct);
       if (partial.current_mode) setCurrentMode(partial.current_mode);
+      if (partial.light_mode) {
+        const lightMap: Record<string, string> = {
+          CIRC: "CIRCADIAN",
+          ICT: "ICTERICIA",
+          PBM: "PHOTOBIOMODULATION",
+        };
+        const mapped = lightMap[partial.light_mode] || partial.light_mode;
+        setLightMode(mapped);
+      }
 
       // Si no pudimos extraer nada util, no molestamos al backend
       const hasData = Object.keys(partial).length > 1 || partial.temp_aire_c !== undefined;
@@ -291,31 +307,40 @@ export default function LiveDataPage() {
     if (currentMode !== "AIR") return;
     const newVal = Math.max(25, Math.min(40, spAir + delta));
     setSpAir(newVal);
-    sendBLE(`SPAIR:${newVal.toFixed(1)}`);
+    sendBLE(`TSPA=${newVal.toFixed(1)}`);
   }, [spAir, sendBLE, currentMode]);
 
   const adjustSpSkin = useCallback((delta: number) => {
     if (currentMode !== "SKIN") return;
     const newVal = Math.max(30, Math.min(37, spSkin + delta));
     setSpSkin(newVal);
-    sendBLE(`SPSKIN:${newVal.toFixed(1)}`);
+    sendBLE(`TSPS=${newVal.toFixed(1)}`);
   }, [spSkin, sendBLE, currentMode]);
 
   const adjustSpHum = useCallback((delta: number) => {
     const newVal = Math.max(45, Math.min(85, spHum + delta));
     setSpHum(newVal);
-    sendBLE(`SPHUM:${newVal.toFixed(1)}`);
+    sendBLE(`HSP=${newVal.toFixed(1)}`);
   }, [spHum, sendBLE]);
 
   const setLightModeCmd = useCallback((mode: string) => {
     setLightMode(mode);
-    sendBLE(`LIGHT:${mode}`);
+    let lightCmd = "";
+    if (mode === "CIRCADIAN") lightCmd = "CIRC";
+    else if (mode === "ICTERICIA") lightCmd = "ICT";
+    else if (mode === "PHOTOBIOMODULATION") lightCmd = "PBM";
+    else lightCmd = mode;
+    sendBLE(`LIGHT=${lightCmd}`);
   }, [sendBLE]);
 
   const setCurrentModeCmd = useCallback((mode: string) => {
     setCurrentMode(mode);
-    sendBLE(`MODE:${mode}`);
-  }, [sendBLE]);
+    if (mode === "AIR") {
+      sendBLE(`TSPA=${spAir.toFixed(1)}`);
+    } else if (mode === "SKIN") {
+      sendBLE(`TSPS=${spSkin.toFixed(1)}`);
+    }
+  }, [sendBLE, spAir, spSkin]);
 
   const lastSeen = useMemo(() => latest?.ts ?? null, [latest]);
 

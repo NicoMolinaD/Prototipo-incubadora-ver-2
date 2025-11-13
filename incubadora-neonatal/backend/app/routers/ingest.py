@@ -113,13 +113,22 @@ def _parse_text_payload(text: str) -> Dict[str, Any]:
             out["humedad"] = float(m.group(1))
         except ValueError:
             pass
-    # Weight (assume kg) ? convert to grams
-    m = re.search(r"weight\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE)
+    # Weight: XX.XX kg (formato nuevo firmware)
+    m = re.search(r"weight\s*[:\s]+([0-9]+(?:\.[0-9]+)?)\s*kg", s, re.IGNORECASE)
     if m:
         try:
             out["peso_g"] = float(m.group(1)) * 1000
         except ValueError:
             pass
+    # Fallback: weight sin unidad (asume kg)
+    elif re.search(r"weight\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE):
+        m = re.search(r"weight\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE)
+        if m:
+            try:
+                val = float(m.group(1))
+                out["peso_g"] = val * 1000 if val < 20 else val
+            except ValueError:
+                pass
     # SP Air: setpoint temperatura aire
     m = re.search(r"SP\s*Air\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE)
     if m:

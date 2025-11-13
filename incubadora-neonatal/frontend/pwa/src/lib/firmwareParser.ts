@@ -45,16 +45,17 @@ export function parseFirmwareText(text: string, deviceId: string): MeasurementIn
   const mUHum = t.match(/\buhum\s*[:=]\s*([-+]?[\d.,]+)\s*%/);
   payload.humedad = toNum(mRH?.[1] ?? mUHum?.[1]);
 
-  // peso: "weight: 3.100 kg" | "peso: 3100 g"
+  // peso: "Weight: 3.10 kg" (formato nuevo firmware)
   const mWeight =
-    t.match(/\bweight\s*[:=]\s*([-+]?[\d.,]+)\s*(kg|g)\b/) ||
-    t.match(/\bpeso\s*[:=]\s*([-+]?[\d.,]+)\s*(kg|g)\b/) ||
-    t.match(/\bweight\s*[:=]\s*([-+]?[\d.,]+)/) ||
-    t.match(/\bpeso\s*[:=]\s*([-+]?[\d.,]+)/);
+    t.match(/\bweight\s*[:=]\s*([-+]?[\d.,]+)\s*kg\b/i) ||
+    t.match(/\bweight\s*[:=]\s*([-+]?[\d.,]+)\s*(kg|g)\b/i) ||
+    t.match(/\bpeso\s*[:=]\s*([-+]?[\d.,]+)\s*(kg|g)\b/i) ||
+    t.match(/\bweight\s*[:=]\s*([-+]?[\d.,]+)/i) ||
+    t.match(/\bpeso\s*[:=]\s*([-+]?[\d.,]+)/i);
 
   if (mWeight) {
     const val = toNum(mWeight[1]);
-    const unit = mWeight[2]?.trim();
+    const unit = mWeight[2]?.trim()?.toLowerCase();
     if (typeof val === "number") {
       if (unit === "kg") payload.peso_g = Math.round(val * 1000);
       else if (unit === "g") payload.peso_g = Math.round(val);

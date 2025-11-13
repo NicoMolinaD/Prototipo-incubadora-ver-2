@@ -93,11 +93,11 @@ RepeatKey repInc, repDec;
 
 // =========================
 // ALARMAS (LEDs) y ENTRADAS
-#define LED_OVERTEMP_PIN      20   // 1) Sobretemperatura
-#define LED_FLOWFAIL_PIN      21   // 2) Falla flujo aire
-#define LED_SENSORFAIL_PIN    47   // 3) Falla de sensor
-#define LED_WDFAIL_PIN        48   // 4) Falla programa (watchdog)
-#define LED_POSTURE_PIN       45   // 5) Postura incorrecta (salida LED)
+#define LED_OVERTEMP_PIN      45   // 1) Sobretemperatura 45
+#define LED_FLOWFAIL_PIN      48   // 2) Falla flujo aire 48
+#define LED_SENSORFAIL_PIN    47   // 3) Falla de sensor 
+#define LED_WDFAIL_PIN        21   // 4) Falla programa (watchdog) 21
+#define LED_POSTURE_PIN       20   // 5) Postura incorrecta (salida LED) 20
 
 #define FLOW_IN_PIN            3   // Entrada digital de flujo (0/1)
 #define POSTURE_IN_PIN        46   // Entrada desde ESP32-CAM (ajusta si usas otro pin)
@@ -204,6 +204,7 @@ HX711 gScale;
 float gCalib = 9360.0f;     // factor de calibración por defecto
 bool  gScaleReady = false;
 
+
 // ====== AÑADIR: Suavizado y helpers de peso ======
 static inline float median3f(float a, float b, float c) {
   if (a > b) { float t=a; a=b; b=t; }
@@ -220,6 +221,9 @@ const float WEIGHT_UI_EPS_KG = 0.001f;
 const float WEIGHT_SNAP_ZERO_KG = 0.01f;   // 20 g: snap a 0 para evitar ruido cerca de cero
 
 // ===== Manual alarm triggers via BLE =====
+// =========================
+// UI / Redibujar setpoint desde loop() para evitar I2C en callbacks
+volatile bool gNeedRedrawSP = false;
 volatile bool gReqAlarm_ST = false;  // Sobretemperatura
 volatile bool gReqAlarm_FF = false;  // Falla flujo
 volatile bool gReqAlarm_FS = false;  // Falla sensor
@@ -379,7 +383,9 @@ void handleButtonsMapped(){
     }
   }
 
-  if (changed) drawOledC();
+    if (changed) {
+    gNeedRedrawSP = true;   // que el loop sea el que dibuje
+  }
 }
 
 // =========================
@@ -577,7 +583,14 @@ String buildBleStatus(){
   line4 += f1(spHum);
   line4 += " %";
 
-  return line1 + line2 + line3 + line4;
+  String line5 = "Light: ";
+  switch (gLight.getMode()) {
+    case LM_CIRCADIAN: line5 += "CIRC"; break;
+    case LM_ICTERICIA: line5 += "ICT"; break;
+    case LM_PBM:       line5 += "PBM"; break;
+  }
+
+  return line1 + line2 + line3 + line4 + line5;
 }
 
 // ====== AÑADIR: BLE con peso agregado ======
@@ -887,12 +900,17 @@ void leerMatriz() {
 HardwareSerial DFSerial(2);         // UART2 del S3
 DFRobotDFPlayerMini dfplayer;
 static bool dfReady = false;
-static bool dfMuted = false;
+
 
 // Ajusta si necesitas otros pines UART2
 static const int DF_RX = 18;        // ESP32-S3 RX ← DF TX
 static const int DF_TX = 17;        // ESP32-S3 TX → DF RX
 static const uint8_t DF_DEFAULT_VOL = 25; // 0..30
+
+// ====== AÑADIR: Audio volumen por ble
+uint8_t gDfVolume = DF_DEFAULT_VOL;   // 0..30
+bool    gDfMuted  = false;
+
 
 void dfInitDFPlayer() {
   DFSerial.begin(9600, SERIAL_8N1, DF_RX, DF_TX);
@@ -912,11 +930,18 @@ bool dfPlayIdx(uint16_t idx) {
   return true;
 }
 
-void dfSetMute(bool on) {
+  void dfSetMute(bool on) {
   if (!dfReady) return;
-  if (on && !dfMuted) { dfplayer.volume(0); dfMuted = true; }
-  else if (!on && dfMuted) { dfplayer.volume(DF_DEFAULT_VOL); dfMuted = false; }
+
+  if (on) {
+    dfplayer.volume(0);
+    gDfMuted = true;
+  } else {
+    dfplayer.volume(gDfVolume);
+    gDfMuted = false;
+  }
 }
+
 
 // =========================
 // Setup
@@ -1001,15 +1026,24 @@ void setup(){
   weightBegin();
 
   // ====== Alarmas (LEDs) =====
-  pinMode(LED_OVERTEMP_PIN,   OUTPUT); setLed(LED_OVERTEMP_PIN,   false);
-  pinMode(LED_FLOWFAIL_PIN,   OUTPUT); setLed(LED_FLOWFAIL_PIN,   false);
-  pinMode(LED_SENSORFAIL_PIN, OUTPUT); setLed(LED_SENSORFAIL_PIN, false);
-  pinMode(LED_WDFAIL_PIN,     OUTPUT); setLed(LED_WDFAIL_PIN,     false);
-  pinMode(LED_POSTURE_PIN,    OUTPUT); setLed(LED_POSTURE_PIN,    false);
+  
+  pinMode(LED_OVERTEMP_PIN,   OUTPUT); digitalWrite(LED_OVERTEMP_PIN, LOW);
+  pinMode(LED_FLOWFAIL_PIN,   OUTPUT); digitalWrite(LED_FLOWFAIL_PIN, LOW);
+  pinMode(LED_SENSORFAIL_PIN, OUTPUT); digitalWrite(LED_SENSORFAIL_PIN, LOW);
+  pinMode(LED_WDFAIL_PIN,     OUTPUT); digitalWrite(LED_WDFAIL_PIN, LOW);
+  pinMode(LED_POSTURE_PIN,    OUTPUT); digitalWrite(LED_POSTURE_PIN, LOW);
+
+  // Si quieres intentar activar pulldown interno:
+  gpio_pulldown_en((gpio_num_t)LED_OVERTEMP_PIN);
+  gpio_pulldown_en((gpio_num_t)LED_FLOWFAIL_PIN);
+  gpio_pulldown_en((gpio_num_t)LED_SENSORFAIL_PIN);
+  gpio_pulldown_en((gpio_num_t)LED_WDFAIL_PIN);
+  gpio_pulldown_en((gpio_num_t)LED_POSTURE_PIN);
 
   // ====== Entradas =====
   pinMode(FLOW_IN_PIN,    (FLOW_FAIL_ACTIVE_LOW? INPUT_PULLUP : INPUT)); // si activo en bajo, PULLUP
-  pinMode(POSTURE_IN_PIN, INPUT);  // Señal lógica desde ESP32-CAM
+  pinMode(POSTURE_IN_PIN, INPUT_PULLDOWN);  // Señal lógica desde ESP32-CAM
+  gpio_pulldown_en((gpio_num_t)POSTURE_IN_PIN);  // refuerza el pulldown en el S3
 
   // ====== AÑADIR: DFPlayer ======
   dfInitDFPlayer();   // no imprime por Serial
@@ -1099,7 +1133,11 @@ void loop(){
     drawWeightOverlay(weightKg_lpf);
     // drawOledC(); // se actualiza al cambiar algo en la botonera
   }
-
+  
+  if (gNeedRedrawSP) {
+    drawOledC();
+    gNeedRedrawSP = false;
+  }
   // BLE: envía cada T_BLE_MS
   if (now - tLastBle_ms >= T_BLE_MS){
     tLastBle_ms = now;
@@ -1119,13 +1157,79 @@ void loop(){
 void handleBleAlarmCommand(const String& raw) {
   String s = raw;
   s.trim();
-  s.toUpperCase();
-  if (s.indexOf("PRST") >= 0) gReqAlarm_ST = true;
-  if (s.indexOf("PRFF") >= 0) gReqAlarm_FF = true;
-  if (s.indexOf("PRFS") >= 0) gReqAlarm_FS = true;
-  if (s.indexOf("PRFP") >= 0) gReqAlarm_FP = true;
-  if (s.indexOf("PRPI") >= 0) gReqAlarm_PI = true;
+  if (!s.length()) return;
+
+  String sUpper = s;
+  sUpper.toUpperCase();
+
+  // ======== 1) Comandos de prueba de alarmas ========
+  if (sUpper.indexOf("PRST") >= 0) gReqAlarm_ST = true;
+  if (sUpper.indexOf("PRFF") >= 0) gReqAlarm_FF = true;
+  if (sUpper.indexOf("PRFS") >= 0) gReqAlarm_FS = true;
+  if (sUpper.indexOf("PRFP") >= 0) gReqAlarm_FP = true;
+  if (sUpper.indexOf("PRPI") >= 0) gReqAlarm_PI = true;
+
+  // ======== 2) KEY = VALUE ========
+  int eqPos = s.indexOf('=');
+  if (eqPos < 0) return;
+
+  String key = s.substring(0, eqPos); key.trim();
+  String val = s.substring(eqPos + 1); val.trim();
+  String keyU = key; keyU.toUpperCase();
+  String valU = val; valU.toUpperCase();
+
+  bool needDrawSP = false;
+
+  // ======== NUEVO: volumen DFPLAYER ========
+  if (keyU == "VOL") {
+    int v = val.toInt();
+    v = constrain(v, 0, 30);
+    gDfVolume = v;
+    if (!gDfMuted) dfplayer.volume(gDfVolume);
+    return;
+  }
+
+  // ======== NUEVO: mute ON/OFF ========
+  if (keyU == "MUTE") {
+    if (valU == "ON"  || valU == "1" || valU == "TRUE")  dfSetMute(true);
+    if (valU == "OFF" || valU == "0" || valU == "FALSE") dfSetMute(false);
+    return;
+  }
+
+  // ======== NUEVO: TSPA / TSPS / HSP ========
+  if (keyU == "TSPA") {
+    float v = val.toFloat();
+    spAir = constrain(v, AIR_MIN, AIR_MAX);
+    currentMode = MODE_AIR;
+    adjustTarget = ADJ_TEMP;
+    needDrawSP = true;
+  }
+  else if (keyU == "TSPS") {
+    float v = val.toFloat();
+    spSkin = constrain(v, SKIN_MIN, SKIN_MAX);
+    currentMode = MODE_SKIN;
+    adjustTarget = ADJ_TEMP;
+    needDrawSP = true;
+  }
+  else if (keyU == "HSP") {
+    float v = val.toFloat();
+    spHum = constrain(v, HUM_MIN, HUM_MAX);
+    adjustTarget = ADJ_HUM;
+    needDrawSP = true;
+  }
+  else if (keyU == "LIGHT" || keyU == "LI") {
+    if (valU == "CIRC") gLight.setMode(LM_CIRCADIAN);
+    else if (valU == "ICT") gLight.setMode(LM_ICTERICIA);
+    else if (valU == "PBM") gLight.setMode(LM_PBM);
+  }
+
+      if (needDrawSP) {
+    gNeedRedrawSP = true;   // solo marcamos la bandera
+  }
+
 }
+
+
 
 
 // Alarmas + AUDIO DFPlayer (añadido)
@@ -1200,4 +1304,3 @@ void updateAlarms(float t_air_now, float t_skin_now, float rh_now) {
   last_wd       = wdFail;
   last_posture  = postureBad;
 }
-
