@@ -15,6 +15,7 @@ const allItems: SidebarItem[] = [
   { to: "/models", label: "Modelos", icon: "?", adminOnly: true },
   { to: "/settings", label: "Configuracion", icon: "??" },
   { to: "/data", label: "Data Management", icon: "??", adminOnly: true },
+  { to: "/users", label: "Usuarios", icon: "??", adminOnly: true },
 ];
 
 export default function Sidebar({ activePath, isAdmin }: { activePath: string; isAdmin: boolean }) {

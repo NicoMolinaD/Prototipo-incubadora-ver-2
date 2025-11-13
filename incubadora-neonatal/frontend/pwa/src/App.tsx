@@ -5,6 +5,7 @@ import TopBar from "./components/TopBar";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import LiveDataPage from "./pages/LiveDataPage";
 import DataManagementPage from "./pages/DataManagementPage";
 import DashboardsPage from "./pages/DashboardsPage";
@@ -12,6 +13,7 @@ import DevicesPage from "./pages/DevicesPage";
 import AlertsPage from "./pages/AlertsPage";
 import ModelsPage from "./pages/ModelsPage";
 import SettingsPage from "./pages/SettingsPage";
+import UsersPage from "./pages/UsersPage";
 
 function AppRoutes() {
   const loc = useLocation();
@@ -26,6 +28,7 @@ function AppRoutes() {
           <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-6xl">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
               <Route path="/" element={<Navigate to="/live" replace />} />
               <Route
                 path="/dashboards"
@@ -80,6 +83,14 @@ function AppRoutes() {
                 element={
                   <ProtectedRoute requireAdmin>
                     <DataManagementPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <UsersPage />
                   </ProtectedRoute>
                 }
               />
