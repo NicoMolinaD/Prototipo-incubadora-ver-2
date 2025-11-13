@@ -288,16 +288,18 @@ export default function LiveDataPage() {
 
   // Funciones de control de setpoints
   const adjustSpAir = useCallback((delta: number) => {
+    if (currentMode !== "AIR") return;
     const newVal = Math.max(25, Math.min(40, spAir + delta));
     setSpAir(newVal);
     sendBLE(`SPAIR:${newVal.toFixed(1)}`);
-  }, [spAir, sendBLE]);
+  }, [spAir, sendBLE, currentMode]);
 
   const adjustSpSkin = useCallback((delta: number) => {
+    if (currentMode !== "SKIN") return;
     const newVal = Math.max(30, Math.min(37, spSkin + delta));
     setSpSkin(newVal);
     sendBLE(`SPSKIN:${newVal.toFixed(1)}`);
-  }, [spSkin, sendBLE]);
+  }, [spSkin, sendBLE, currentMode]);
 
   const adjustSpHum = useCallback((delta: number) => {
     const newVal = Math.max(45, Math.min(85, spHum + delta));
@@ -371,25 +373,29 @@ export default function LiveDataPage() {
       </div>
 
       {bleConnected && (
-        <div className="rounded-lg border p-4 space-y-4">
-          <h2 className="text-xl font-semibold">Controles Remotos</h2>
+        <div className="rounded-lg border p-6 space-y-6 bg-white shadow-sm">
+          <h2 className="text-2xl font-semibold text-slate-900">Controles Remotos</h2>
 
-          {/* Modo de Control */}
-          <div className="border rounded p-3">
-            <div className="mb-2 font-medium">Modo de Control</div>
-            <div className="flex gap-2">
+          {/* Seccion: Modo de Control de Temperatura */}
+          <div className="border-2 rounded-lg p-4 bg-slate-50">
+            <h3 className="text-lg font-semibold mb-3 text-slate-800">Modo de Control de Temperatura</h3>
+            <div className="flex gap-3">
               <button
                 onClick={() => setCurrentModeCmd("AIR")}
-                className={`px-3 py-1 rounded border ${
-                  currentMode === "AIR" ? "bg-blue-200" : ""
+                className={`px-6 py-3 rounded-lg border-2 font-medium transition-all ${
+                  currentMode === "AIR"
+                    ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                 }`}
               >
                 Aire
               </button>
               <button
                 onClick={() => setCurrentModeCmd("SKIN")}
-                className={`px-3 py-1 rounded border ${
-                  currentMode === "SKIN" ? "bg-blue-200" : ""
+                className={`px-6 py-3 rounded-lg border-2 font-medium transition-all ${
+                  currentMode === "SKIN"
+                    ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                 }`}
               >
                 Piel
@@ -397,106 +403,166 @@ export default function LiveDataPage() {
             </div>
           </div>
 
-          {/* Setpoint Temperatura Aire - Solo visible cuando modo AIR */}
+          {/* Seccion: Setpoint Temperatura Aire - Solo visible cuando modo AIR */}
           {currentMode === "AIR" && (
-            <div className="border rounded p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">Setpoint Temp Aire (25-40°C)</span>
-                <span className="text-lg">{spAir.toFixed(1)}°C</span>
+            <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Setpoint Temperatura Aire</h3>
+                  <p className="text-sm text-slate-600">Rango: 25.0°C - 40.0°C</p>
+                </div>
+                <div className="text-3xl font-bold text-blue-700">{spAir.toFixed(1)}°C</div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3 items-center">
                 <button
                   onClick={() => adjustSpAir(-0.1)}
-                  className="px-3 py-1 rounded border"
+                  className="px-6 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   disabled={spAir <= 25}
                 >
-                  -0.1
+                  -0.1°C
+                </button>
+                <button
+                  onClick={() => adjustSpAir(-1.0)}
+                  className="px-4 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={spAir <= 25}
+                >
+                  -1.0°C
+                </button>
+                <div className="flex-1 text-center text-sm text-slate-600">Ajuste</div>
+                <button
+                  onClick={() => adjustSpAir(1.0)}
+                  className="px-4 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={spAir >= 40}
+                >
+                  +1.0°C
                 </button>
                 <button
                   onClick={() => adjustSpAir(0.1)}
-                  className="px-3 py-1 rounded border"
+                  className="px-6 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   disabled={spAir >= 40}
                 >
-                  +0.1
+                  +0.1°C
                 </button>
               </div>
             </div>
           )}
 
-          {/* Setpoint Temperatura Piel - Solo visible cuando modo SKIN */}
+          {/* Seccion: Setpoint Temperatura Piel - Solo visible cuando modo SKIN */}
           {currentMode === "SKIN" && (
-            <div className="border rounded p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">Setpoint Temp Piel (30-37°C)</span>
-                <span className="text-lg">{spSkin.toFixed(1)}°C</span>
+            <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-800">Setpoint Temperatura Piel</h3>
+                  <p className="text-sm text-slate-600">Rango: 30.0°C - 37.0°C</p>
+                </div>
+                <div className="text-3xl font-bold text-blue-700">{spSkin.toFixed(1)}°C</div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3 items-center">
                 <button
                   onClick={() => adjustSpSkin(-0.1)}
-                  className="px-3 py-1 rounded border"
+                  className="px-6 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   disabled={spSkin <= 30}
                 >
-                  -0.1
+                  -0.1°C
+                </button>
+                <button
+                  onClick={() => adjustSpSkin(-1.0)}
+                  className="px-4 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={spSkin <= 30}
+                >
+                  -1.0°C
+                </button>
+                <div className="flex-1 text-center text-sm text-slate-600">Ajuste</div>
+                <button
+                  onClick={() => adjustSpSkin(1.0)}
+                  className="px-4 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  disabled={spSkin >= 37}
+                >
+                  +1.0°C
                 </button>
                 <button
                   onClick={() => adjustSpSkin(0.1)}
-                  className="px-3 py-1 rounded border"
+                  className="px-6 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   disabled={spSkin >= 37}
                 >
-                  +0.1
+                  +0.1°C
                 </button>
               </div>
             </div>
           )}
 
-          {/* Setpoint Humedad */}
-          <div className="border rounded p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Setpoint Humedad (45-85%)</span>
-              <span className="text-lg">{spHum.toFixed(1)}%</span>
+          {/* Seccion: Setpoint Humedad Relativa */}
+          <div className="border-2 rounded-lg p-4 bg-green-50">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">Setpoint Humedad Relativa</h3>
+                <p className="text-sm text-slate-600">Rango: 45.0% - 85.0%</p>
+              </div>
+              <div className="text-3xl font-bold text-green-700">{spHum.toFixed(1)}%</div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3 items-center">
               <button
                 onClick={() => adjustSpHum(-0.5)}
-                className="px-3 py-1 rounded border"
+                className="px-6 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 disabled={spHum <= 45}
               >
-                -0.5
+                -0.5%
+              </button>
+              <button
+                onClick={() => adjustSpHum(-1.0)}
+                className="px-4 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                disabled={spHum <= 45}
+              >
+                -1.0%
+              </button>
+              <div className="flex-1 text-center text-sm text-slate-600">Ajuste</div>
+              <button
+                onClick={() => adjustSpHum(1.0)}
+                className="px-4 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                disabled={spHum >= 85}
+              >
+                +1.0%
               </button>
               <button
                 onClick={() => adjustSpHum(0.5)}
-                className="px-3 py-1 rounded border"
+                className="px-6 py-3 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 disabled={spHum >= 85}
               >
-                +0.5
+                +0.5%
               </button>
             </div>
           </div>
 
-          {/* Control de Iluminacion */}
-          <div className="border rounded p-3">
-            <div className="mb-2 font-medium">Modo de Iluminacion</div>
-            <div className="flex gap-2 flex-wrap">
+          {/* Seccion: Control de Iluminacion Multimodal */}
+          <div className="border-2 rounded-lg p-4 bg-yellow-50">
+            <h3 className="text-lg font-semibold mb-3 text-slate-800">Iluminacion Multimodal</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button
                 onClick={() => setLightModeCmd("CIRCADIAN")}
-                className={`px-3 py-1 rounded border ${
-                  lightMode === "CIRCADIAN" ? "bg-yellow-200" : ""
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
+                  lightMode === "CIRCADIAN"
+                    ? "bg-yellow-500 text-white border-yellow-500 shadow-md"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-yellow-100"
                 }`}
               >
                 Luz Circadiana
               </button>
               <button
                 onClick={() => setLightModeCmd("ICTERICIA")}
-                className={`px-3 py-1 rounded border ${
-                  lightMode === "ICTERICIA" ? "bg-yellow-200" : ""
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
+                  lightMode === "ICTERICIA"
+                    ? "bg-yellow-500 text-white border-yellow-500 shadow-md"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-yellow-100"
                 }`}
               >
                 Ictericia
               </button>
               <button
                 onClick={() => setLightModeCmd("PHOTOBIOMODULATION")}
-                className={`px-3 py-1 rounded border ${
-                  lightMode === "PHOTOBIOMODULATION" ? "bg-yellow-200" : ""
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
+                  lightMode === "PHOTOBIOMODULATION"
+                    ? "bg-yellow-500 text-white border-yellow-500 shadow-md"
+                    : "bg-white text-slate-700 border-slate-300 hover:bg-yellow-100"
                 }`}
               >
                 Fotobiomodulacion
