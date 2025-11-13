@@ -19,56 +19,89 @@ type BtServiceUUID = number | string;
 const SERVICE_UUID: BtServiceUUID =
   "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 
-/**
- * Convierte una linea recibida por BLE en campos de telemetria.
- * Busca "Temp Air", "Air", "Skin", "RH", "uHum" y "Weight".
- */
-function parseBleLine(text: string): Partial<MeasurementOut> {
-  const out: Partial<MeasurementOut> = {
+interface ParsedBleData extends Partial<MeasurementOut> {
+  sp_air_c?: number;
+  sp_skin_c?: number;
+  sp_hum_pct?: number;
+  current_mode?: string;
+  adjust_target?: string;
+}
+
+function parseBleLine(text: string): ParsedBleData {
+  const out: ParsedBleData = {
     ts: new Date().toISOString(),
   };
 
-  // TEMP Air: 26.3 C  |  Air: 26.3 C
-  const mTempAir =
-    text.match(/TEMP\s*Air\s*:\s*([\d.]+)/i) ||
-    text.match(/\bAir\s*:\s*([\d.]+)/i);
+  const t = text.replace(/\r/g, "");
+
+  // TEMP Air: 26.3 C
+  const mTempAir = t.match(/TEMP\s*Air\s*:\s*([\d.]+)/i);
   if (mTempAir) {
     const v = parseFloat(mTempAir[1]);
     if (!Number.isNaN(v)) out.temp_aire_c = v;
   }
 
   // Skin: 34.0 C
-  const mSkin = text.match(/\bSkin\s*:\s*([\d.]+)/i);
+  const mSkin = t.match(/\bSkin\s*:\s*([\d.]+)/i);
   if (mSkin) {
     const v = parseFloat(mSkin[1]);
     if (!Number.isNaN(v)) out.temp_piel_c = v;
   }
 
-  // RH: 68.4 %   o   Hum: 55.0 %
-  const mRh =
-    text.match(/\bRH\s*:\s*([\d.]+)/i) ||
-    text.match(/\bHum(?:idity)?\s*:\s*([\d.]+)/i);
+  // RH: 68.4 %
+  const mRh = t.match(/\bRH\s*:\s*([\d.]+)/i);
   if (mRh) {
     const v = parseFloat(mRh[1]);
     if (!Number.isNaN(v)) out.humedad = v;
   }
 
-  // uHum: 0 %  (si quieres tratarlo igual que humedad)
-  const mUhum = text.match(/\buHum\s*:\s*([\d.]+)/i);
+  // uHum: 0 %
+  const mUhum = t.match(/\buHum\s*:\s*([\d.]+)/i);
   if (mUhum && out.humedad === undefined) {
     const v = parseFloat(mUhum[1]);
     if (!Number.isNaN(v)) out.humedad = v;
   }
 
-  // Weight / Peso opcional (solo si en algún momento lo envías)
-  const mWeight = text.match(/\bWeight\s*:\s*([\d.]+)/i);
+  // Weight: 3.10 kg
+  const mWeight = t.match(/\bWeight\s*:\s*([\d.]+)/i);
   if (mWeight) {
     const v = parseFloat(mWeight[1]);
     if (!Number.isNaN(v)) {
-      // si el ESP manda en kg:
       out.peso_g = v * 1000;
-      // si manda en g directo, usa: out.peso_g = v;
     }
+  }
+
+  // SP Air: 35.0 C
+  const mSpAir = t.match(/\bSP\s*Air\s*:\s*([\d.]+)/i);
+  if (mSpAir) {
+    const v = parseFloat(mSpAir[1]);
+    if (!Number.isNaN(v)) out.sp_air_c = v;
+  }
+
+  // SP Skin: 34.0 C
+  const mSpSkin = t.match(/\bSP\s*Skin\s*:\s*([\d.]+)/i);
+  if (mSpSkin) {
+    const v = parseFloat(mSpSkin[1]);
+    if (!Number.isNaN(v)) out.sp_skin_c = v;
+  }
+
+  // SP Hum: 55.0 %
+  const mSpHum = t.match(/\bSP\s*Hum\s*:\s*([\d.]+)/i);
+  if (mSpHum) {
+    const v = parseFloat(mSpHum[1]);
+    if (!Number.isNaN(v)) out.sp_hum_pct = v;
+  }
+
+  // Mode: AIR | SKIN
+  const mMode = t.match(/\bMode\s*:\s*(\w+)/i);
+  if (mMode) {
+    out.current_mode = mMode[1].toUpperCase();
+  }
+
+  // Target: TEMP | HUM
+  const mTarget = t.match(/\bTarget\s*:\s*(\w+)/i);
+  if (mTarget) {
+    out.adjust_target = mTarget[1].toUpperCase();
   }
 
   return out;
@@ -86,6 +119,13 @@ export default function LiveDataPage() {
   const txRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const rxRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const [lastBleMsg, setLastBleMsg] = useState("");
+
+  // Estado de setpoints y controles
+  const [spAir, setSpAir] = useState<number>(35.0);
+  const [spSkin, setSpSkin] = useState<number>(34.0);
+  const [spHum, setSpHum] = useState<number>(55.0);
+  const [lightMode, setLightMode] = useState<string>("CIRCADIAN");
+  const [currentMode, setCurrentMode] = useState<string>("AIR");
 
   // Poll de dispositivos (cada 5 s)
   useEffect(() => {
@@ -150,7 +190,13 @@ export default function LiveDataPage() {
       // 2) Lo convertimos a un objeto parcial con nuestros campos
       const partial = parseBleLine(text);
 
-      // Si no pudimos extraer nada útil, no molestamos al backend
+      // Actualizar setpoints desde el mensaje BLE
+      if (partial.sp_air_c !== undefined) setSpAir(partial.sp_air_c);
+      if (partial.sp_skin_c !== undefined) setSpSkin(partial.sp_skin_c);
+      if (partial.sp_hum_pct !== undefined) setSpHum(partial.sp_hum_pct);
+      if (partial.current_mode) setCurrentMode(partial.current_mode);
+
+      // Si no pudimos extraer nada util, no molestamos al backend
       const hasData = Object.keys(partial).length > 1 || partial.temp_aire_c !== undefined;
       if (!hasData) return;
 
@@ -169,8 +215,6 @@ export default function LiveDataPage() {
         console.error("ingest failed", err);
       });
     }, []);
-
-
 
   // Conectar BLE
   const connectBLE = useCallback(async () => {
@@ -242,6 +286,35 @@ export default function LiveDataPage() {
     await rx.writeValue(new TextEncoder().encode(msg));
   }, []);
 
+  // Funciones de control de setpoints
+  const adjustSpAir = useCallback((delta: number) => {
+    const newVal = Math.max(25, Math.min(40, spAir + delta));
+    setSpAir(newVal);
+    sendBLE(`SPAIR:${newVal.toFixed(1)}`);
+  }, [spAir, sendBLE]);
+
+  const adjustSpSkin = useCallback((delta: number) => {
+    const newVal = Math.max(30, Math.min(37, spSkin + delta));
+    setSpSkin(newVal);
+    sendBLE(`SPSKIN:${newVal.toFixed(1)}`);
+  }, [spSkin, sendBLE]);
+
+  const adjustSpHum = useCallback((delta: number) => {
+    const newVal = Math.max(45, Math.min(85, spHum + delta));
+    setSpHum(newVal);
+    sendBLE(`SPHUM:${newVal.toFixed(1)}`);
+  }, [spHum, sendBLE]);
+
+  const setLightModeCmd = useCallback((mode: string) => {
+    setLightMode(mode);
+    sendBLE(`LIGHT:${mode}`);
+  }, [sendBLE]);
+
+  const setCurrentModeCmd = useCallback((mode: string) => {
+    setCurrentMode(mode);
+    sendBLE(`MODE:${mode}`);
+  }, [sendBLE]);
+
   const lastSeen = useMemo(() => latest?.ts ?? null, [latest]);
 
   return (
@@ -275,24 +348,6 @@ export default function LiveDataPage() {
               >
                 Desconectar BLE
               </button>
-              <button
-                onClick={() => sendBLE("LED_ON")}
-                className="rounded border px-3 py-2"
-              >
-                LED ON
-              </button>
-              <button
-                onClick={() => sendBLE("LED_OFF")}
-                className="rounded border px-3 py-2"
-              >
-                LED OFF
-              </button>
-              <button
-                onClick={() => sendBLE("SET:38")}
-                className="rounded border px-3 py-2"
-              >
-                SET 38
-              </button>
             </>
           )}
         </div>
@@ -314,6 +369,131 @@ export default function LiveDataPage() {
         <Card title="Humedad (%)">{fmt(latest?.humedad)}</Card>
         <Card title="Peso (g)">{fmt(latest?.peso_g)}</Card>
       </div>
+
+      {bleConnected && (
+        <div className="rounded-lg border p-4 space-y-4">
+          <h2 className="text-xl font-semibold">Controles Remotos</h2>
+
+          {/* Setpoint Temperatura Aire */}
+          <div className="border rounded p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Setpoint Temp Aire (25-40Â°C)</span>
+              <span className="text-lg">{spAir.toFixed(1)}Â°C</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentModeCmd("AIR")}
+                className={`px-3 py-1 rounded border ${
+                  currentMode === "AIR" ? "bg-blue-200" : ""
+                }`}
+              >
+                Seleccionar Aire
+              </button>
+              <button
+                onClick={() => adjustSpAir(-0.1)}
+                className="px-3 py-1 rounded border"
+                disabled={spAir <= 25}
+              >
+                -0.1
+              </button>
+              <button
+                onClick={() => adjustSpAir(0.1)}
+                className="px-3 py-1 rounded border"
+                disabled={spAir >= 40}
+              >
+                +0.1
+              </button>
+            </div>
+          </div>
+
+          {/* Setpoint Temperatura Piel */}
+          <div className="border rounded p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Setpoint Temp Piel (30-37Â°C)</span>
+              <span className="text-lg">{spSkin.toFixed(1)}Â°C</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentModeCmd("SKIN")}
+                className={`px-3 py-1 rounded border ${
+                  currentMode === "SKIN" ? "bg-blue-200" : ""
+                }`}
+              >
+                Seleccionar Piel
+              </button>
+              <button
+                onClick={() => adjustSpSkin(-0.1)}
+                className="px-3 py-1 rounded border"
+                disabled={spSkin <= 30}
+              >
+                -0.1
+              </button>
+              <button
+                onClick={() => adjustSpSkin(0.1)}
+                className="px-3 py-1 rounded border"
+                disabled={spSkin >= 37}
+              >
+                +0.1
+              </button>
+            </div>
+          </div>
+
+          {/* Setpoint Humedad */}
+          <div className="border rounded p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-medium">Setpoint Humedad (45-85%)</span>
+              <span className="text-lg">{spHum.toFixed(1)}%</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => adjustSpHum(-0.5)}
+                className="px-3 py-1 rounded border"
+                disabled={spHum <= 45}
+              >
+                -0.5
+              </button>
+              <button
+                onClick={() => adjustSpHum(0.5)}
+                className="px-3 py-1 rounded border"
+                disabled={spHum >= 85}
+              >
+                +0.5
+              </button>
+            </div>
+          </div>
+
+          {/* Control de Iluminacion */}
+          <div className="border rounded p-3">
+            <div className="mb-2 font-medium">Modo de Iluminacion</div>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setLightModeCmd("CIRCADIAN")}
+                className={`px-3 py-1 rounded border ${
+                  lightMode === "CIRCADIAN" ? "bg-yellow-200" : ""
+                }`}
+              >
+                Luz Circadiana
+              </button>
+              <button
+                onClick={() => setLightModeCmd("ICTERICIA")}
+                className={`px-3 py-1 rounded border ${
+                  lightMode === "ICTERICIA" ? "bg-yellow-200" : ""
+                }`}
+              >
+                Ictericia
+              </button>
+              <button
+                onClick={() => setLightModeCmd("PBM")}
+                className={`px-3 py-1 rounded border ${
+                  lightMode === "PBM" ? "bg-yellow-200" : ""
+                }`}
+              >
+                Fotobiomodulacion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,10 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
+import ProtectedRoute from "./components/ProtectedRoute";
 
+import LoginPage from "./pages/LoginPage";
 import LiveDataPage from "./pages/LiveDataPage";
 import DataManagementPage from "./pages/DataManagementPage";
 import DashboardsPage from "./pages/DashboardsPage";
@@ -10,29 +13,89 @@ import AlertsPage from "./pages/AlertsPage";
 import ModelsPage from "./pages/ModelsPage";
 import SettingsPage from "./pages/SettingsPage";
 
-export default function App() {
+function AppRoutes() {
   const loc = useLocation();
+  const { isAdmin } = useAuth();
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="flex">
-        <Sidebar activePath={loc.pathname} />
+        <Sidebar activePath={loc.pathname} isAdmin={isAdmin} />
         <main className="flex-1 ml-0 lg:ml-64">
           <TopBar />
           <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-6xl">
             <Routes>
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/" element={<Navigate to="/live" replace />} />
-              <Route path="/dashboards" element={<DashboardsPage />} />
-              <Route path="/live" element={<LiveDataPage />} />
-              <Route path="/devices" element={<DevicesPage />} />
-              <Route path="/alerts" element={<AlertsPage />} />
-              <Route path="/models" element={<ModelsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/data" element={<DataManagementPage />} />
+              <Route
+                path="/dashboards"
+                element={
+                  <ProtectedRoute>
+                    <DashboardsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/live"
+                element={
+                  <ProtectedRoute>
+                    <LiveDataPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/devices"
+                element={
+                  <ProtectedRoute>
+                    <DevicesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/alerts"
+                element={
+                  <ProtectedRoute>
+                    <AlertsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/models"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <ModelsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/data"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <DataManagementPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<div className="card">404 - Ruta no encontrada</div>} />
             </Routes>
           </div>
         </main>
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

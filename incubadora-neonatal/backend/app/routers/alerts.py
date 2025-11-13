@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from typing import List
 from ..db import get_db
 from .. import models, schemas
+from ..auth import get_current_active_user
 
 router = APIRouter(tags=["alerts"])
 
-# Mapeo bitmask ? etiquetas (ajusta según tus reglas)
+# Mapeo bitmask ? etiquetas (ajusta segï¿½n tus reglas)
 ALERT_LABELS = {
     1: "Alta temp aire",
     2: "Baja temp aire",
@@ -17,7 +18,11 @@ ALERT_LABELS = {
 }
 
 @router.get("/alerts", response_model=List[schemas.AlertRow])
-def alerts(limit: int = 100, db: Session = Depends(get_db)):
+def alerts(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
     q = (
         db.query(models.Measurement)
         .filter(models.Measurement.alerts != None)

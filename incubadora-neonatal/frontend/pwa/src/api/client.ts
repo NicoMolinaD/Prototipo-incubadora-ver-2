@@ -18,12 +18,27 @@ const BASE =
   (import.meta.env.VITE_API_BASE as string) ||
   (location.origin + "/api/incubadora");
 
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem("token");
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 async function j<T>(r: Response): Promise<T> {
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    if (r.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    throw new Error(await r.text());
+  }
   return r.json();
 }
 
-// Ingesta de medición (JSON que armamos en onNotify)
+// Ingesta de mediciï¿½n (JSON que armamos en onNotify)
 export async function ingest(payload: {
   device_id: string;
   ts?: string;
@@ -34,7 +49,7 @@ export async function ingest(payload: {
 }) {
   const r = await fetch(`${BASE}/ingest`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(payload),
   });
   return j<{ ok: true; id: number }>(r);
@@ -42,14 +57,17 @@ export async function ingest(payload: {
 
 // Lista de dispositivos para poblar el selector
 export async function getDevices() {
-  const r = await fetch(`${BASE}/query/devices`);
+  const r = await fetch(`${BASE}/query/devices`, {
+    headers: getAuthHeaders(),
+  });
   return j<{ id: string; last_seen: string | null }[]>(r);
 }
 
-// Última muestra por device_id (para las cards de Live Data)
+// ï¿½ltima muestra por device_id (para las cards de Live Data)
 export async function getLatest(device_id: string) {
   const r = await fetch(
-    `${BASE}/query/latest?device_id=${encodeURIComponent(device_id)}`
+    `${BASE}/query/latest?device_id=${encodeURIComponent(device_id)}`,
+    { headers: getAuthHeaders() }
   );
   return j<{
     ts: string;
@@ -82,7 +100,9 @@ export async function getSeries(params: {
   if (params.since_minutes) sp.set("since_minutes", String(params.since_minutes));
   if (params.limit)         sp.set("limit", String(params.limit));
   const qs = sp.toString();
-  return unwrapJson(await fetch(`${BASE}/query/series${qs ? `?${qs}` : ""}`));
+  return unwrapJson(await fetch(`${BASE}/query/series${qs ? `?${qs}` : ""}`, {
+    headers: getAuthHeaders(),
+  }));
 }
 
 export async function getAlerts(params: {
@@ -95,13 +115,20 @@ export async function getAlerts(params: {
   if (params.since_minutes) sp.set("since_minutes", String(params.since_minutes));
   if (params.limit)         sp.set("limit", String(params.limit));
   const qs = sp.toString();
-  return unwrapJson(await fetch(`${BASE}/alerts${qs ? `?${qs}` : ""}`));
+  return unwrapJson(await fetch(`${BASE}/alerts${qs ? `?${qs}` : ""}`, {
+    headers: getAuthHeaders(),
+  }));
 }
 
 export async function getModelStatus() {
-  return unwrapJson(await fetch(`${BASE}/models/status`));
+  return unwrapJson(await fetch(`${BASE}/models/status`, {
+    headers: getAuthHeaders(),
+  }));
 }
 
 export async function retrainModel() {
-  return unwrapJson(await fetch(`${BASE}/models/retrain`, { method: "POST" }));
+  return unwrapJson(await fetch(`${BASE}/models/retrain`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  }));
 }

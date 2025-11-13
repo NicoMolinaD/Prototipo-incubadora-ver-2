@@ -120,6 +120,27 @@ def _parse_text_payload(text: str) -> Dict[str, Any]:
             out["peso_g"] = float(m.group(1)) * 1000
         except ValueError:
             pass
+    # SP Air: setpoint temperatura aire
+    m = re.search(r"SP\s*Air\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE)
+    if m:
+        try:
+            out["sp_air_c"] = float(m.group(1))
+        except ValueError:
+            pass
+    # SP Skin: setpoint temperatura piel
+    m = re.search(r"SP\s*Skin\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE)
+    if m:
+        try:
+            out["sp_skin_c"] = float(m.group(1))
+        except ValueError:
+            pass
+    # SP Hum: setpoint humedad
+    m = re.search(r"SP\s*Hum\s*[:\s]+([0-9]+(?:\.[0-9]+)?)", s, re.IGNORECASE)
+    if m:
+        try:
+            out["sp_hum_pct"] = float(m.group(1))
+        except ValueError:
+            pass
     return out
 
 

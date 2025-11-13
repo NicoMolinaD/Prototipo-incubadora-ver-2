@@ -1,9 +1,11 @@
 # app/routers/models_router.py
 from __future__ import annotations
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 from datetime import datetime
 from ..schemas import ModelStatus
 from ..settings import settings
+from ..auth import get_current_admin_user
+from .. import models
 
 router = APIRouter(prefix="/models", tags=["models"])
 
@@ -16,11 +18,16 @@ _STATE = ModelStatus(
 )
 
 @router.get("/status", response_model=ModelStatus)
-def get_status() -> ModelStatus:
+def get_status(
+    current_user: models.User = Depends(get_current_admin_user)
+) -> ModelStatus:
     return _STATE
 
 @router.post("/retrain", response_model=ModelStatus)
-def retrain(background: BackgroundTasks) -> ModelStatus:
+def retrain(
+    background: BackgroundTasks,
+    current_user: models.User = Depends(get_current_admin_user)
+) -> ModelStatus:
     global _STATE
 
     # Simula entrenamiento en background
@@ -33,7 +40,7 @@ def retrain(background: BackgroundTasks) -> ModelStatus:
     _STATE.training = True
     background.add_task(_job)
 
-    # Aumenta el último número de versión
+    # Aumenta el ï¿½ltimo nï¿½mero de versiï¿½n
     parts = _STATE.version.split(".")
     if parts and parts[-1].isdigit():
         parts[-1] = str(int(parts[-1]) + 1)

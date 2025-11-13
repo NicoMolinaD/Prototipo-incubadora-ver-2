@@ -11,8 +11,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "types": ["vite/client"],
-    "baseUrl": "."
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src", "src/web-bluetooth.d.ts"]
 }

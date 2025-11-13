@@ -7,17 +7,21 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..db import get_db
 from .. import models, schemas
+from ..auth import get_current_active_user, get_current_admin_user
 
 router = APIRouter(prefix="/query", tags=["query"])
 
 @router.get("/devices", response_model=List[schemas.DeviceRow])
-def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:
+def list_devices(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+) -> List[schemas.DeviceRow]:
     """
     Devuelve todos los dispositivos junto con su ultima lectura.
     Incluye un objeto 'metrics' con los valores mas recientes o vacio
     si aun no hay mediciones.
     """
-    # Consultar identificadores y último timestamp
+    # Consultar identificadores y ï¿½ltimo timestamp
     device_entries = (
         db.query(
             models.Measurement.device_id.label("id"),
@@ -30,7 +34,7 @@ def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:
 
     result: List[schemas.DeviceRow] = []
     for entry in device_entries:
-        # Última medición para rellenar metrics
+        # ï¿½ltima mediciï¿½n para rellenar metrics
         m = (
             db.query(models.Measurement)
             .filter(models.Measurement.device_id == entry.id)
@@ -48,7 +52,7 @@ def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:
         else:
             metrics = schemas.DeviceMetrics()
 
-        # ? AQUÍ el cambio clave: datetime -> string ISO
+        # ? AQUï¿½ el cambio clave: datetime -> string ISO
         last_seen_iso = entry.last_seen.isoformat() if entry.last_seen else None
 
         result.append(
@@ -62,7 +66,11 @@ def list_devices(db: Session = Depends(get_db)) -> List[schemas.DeviceRow]:
 
 
 @router.get("/latest", response_model=schemas.MeasurementOut)
-def latest(device_id: str, db: Session = Depends(get_db)):
+def latest(
+    device_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
     m = (
         db.query(models.Measurement)
         .filter(models.Measurement.device_id == device_id)
@@ -79,6 +87,7 @@ def series(
     since_minutes: Optional[int] = None,
     limit: Optional[int] = None,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
 ):
     q = db.query(models.Measurement)
     if device_id:
@@ -90,5 +99,5 @@ def series(
     if limit:
         q = q.limit(limit)
     rows = q.all()
-    # se devuelve ascendente para gráficos
+    # se devuelve ascendente para grï¿½ficos
     return list(reversed(rows))
