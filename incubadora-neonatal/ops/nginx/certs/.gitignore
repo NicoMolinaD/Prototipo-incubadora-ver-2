@@ -1,0 +1,11 @@
+# Ignorar certificados SSL (nunca subir claves privadas al repositorio)
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# Mantener este archivo para que el directorio exista en git
+!.gitignore
+
