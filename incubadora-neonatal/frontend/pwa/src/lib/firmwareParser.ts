@@ -7,6 +7,11 @@ export type MeasurementIn = {
   temp_piel_c?: number;
   humedad?: number;
   peso_g?: number;
+  sp_air_c?: number;
+  sp_skin_c?: number;
+  sp_hum_pct?: number;
+  current_mode?: "AIR" | "SKIN";
+  adjust_target?: "TEMP" | "HUM";
 };
 
 function toNum(s?: string): number | undefined {
@@ -60,19 +65,31 @@ export function parseFirmwareText(text: string, deviceId: string): MeasurementIn
   // SP Air: setpoint temperatura aire
   const mSpAir = t.match(/\bsp\s*air\s*[:=]\s*([-+]?[\d.,]+)/);
   if (mSpAir) {
-    (payload as any).sp_air_c = toNum(mSpAir[1]);
+    payload.sp_air_c = toNum(mSpAir[1]);
   }
 
   // SP Skin: setpoint temperatura piel
   const mSpSkin = t.match(/\bsp\s*skin\s*[:=]\s*([-+]?[\d.,]+)/);
   if (mSpSkin) {
-    (payload as any).sp_skin_c = toNum(mSpSkin[1]);
+    payload.sp_skin_c = toNum(mSpSkin[1]);
   }
 
   // SP Hum: setpoint humedad
   const mSpHum = t.match(/\bsp\s*hum\s*[:=]\s*([-+]?[\d.,]+)/);
   if (mSpHum) {
-    (payload as any).sp_hum_pct = toNum(mSpHum[1]);
+    payload.sp_hum_pct = toNum(mSpHum[1]);
+  }
+
+  // Mode: AIR | SKIN
+  const mMode = t.match(/\bmode\s*[:=]\s*(air|skin)/);
+  if (mMode) {
+    payload.current_mode = mMode[1].toUpperCase() as "AIR" | "SKIN";
+  }
+
+  // Target: TEMP | HUM
+  const mTarget = t.match(/\btarget\s*[:=]\s*(temp|hum)/);
+  if (mTarget) {
+    payload.adjust_target = mTarget[1].toUpperCase() as "TEMP" | "HUM";
   }
 
   return payload;

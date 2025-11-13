@@ -141,6 +141,14 @@ def _parse_text_payload(text: str) -> Dict[str, Any]:
             out["sp_hum_pct"] = float(m.group(1))
         except ValueError:
             pass
+    # Mode: AIR | SKIN
+    m = re.search(r"Mode\s*[:\s]+(AIR|SKIN)", s, re.IGNORECASE)
+    if m:
+        out["current_mode"] = m.group(1).upper()
+    # Target: TEMP | HUM
+    m = re.search(r"Target\s*[:\s]+(TEMP|HUM)", s, re.IGNORECASE)
+    if m:
+        out["adjust_target"] = m.group(1).upper()
     return out
 
 

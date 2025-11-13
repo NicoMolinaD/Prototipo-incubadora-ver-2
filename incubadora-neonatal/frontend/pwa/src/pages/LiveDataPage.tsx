@@ -374,12 +374,9 @@ export default function LiveDataPage() {
         <div className="rounded-lg border p-4 space-y-4">
           <h2 className="text-xl font-semibold">Controles Remotos</h2>
 
-          {/* Setpoint Temperatura Aire */}
+          {/* Modo de Control */}
           <div className="border rounded p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Setpoint Temp Aire (25-40°C)</span>
-              <span className="text-lg">{spAir.toFixed(1)}°C</span>
-            </div>
+            <div className="mb-2 font-medium">Modo de Control</div>
             <div className="flex gap-2">
               <button
                 onClick={() => setCurrentModeCmd("AIR")}
@@ -387,56 +384,70 @@ export default function LiveDataPage() {
                   currentMode === "AIR" ? "bg-blue-200" : ""
                 }`}
               >
-                Seleccionar Aire
+                Aire
               </button>
-              <button
-                onClick={() => adjustSpAir(-0.1)}
-                className="px-3 py-1 rounded border"
-                disabled={spAir <= 25}
-              >
-                -0.1
-              </button>
-              <button
-                onClick={() => adjustSpAir(0.1)}
-                className="px-3 py-1 rounded border"
-                disabled={spAir >= 40}
-              >
-                +0.1
-              </button>
-            </div>
-          </div>
-
-          {/* Setpoint Temperatura Piel */}
-          <div className="border rounded p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Setpoint Temp Piel (30-37°C)</span>
-              <span className="text-lg">{spSkin.toFixed(1)}°C</span>
-            </div>
-            <div className="flex gap-2">
               <button
                 onClick={() => setCurrentModeCmd("SKIN")}
                 className={`px-3 py-1 rounded border ${
                   currentMode === "SKIN" ? "bg-blue-200" : ""
                 }`}
               >
-                Seleccionar Piel
-              </button>
-              <button
-                onClick={() => adjustSpSkin(-0.1)}
-                className="px-3 py-1 rounded border"
-                disabled={spSkin <= 30}
-              >
-                -0.1
-              </button>
-              <button
-                onClick={() => adjustSpSkin(0.1)}
-                className="px-3 py-1 rounded border"
-                disabled={spSkin >= 37}
-              >
-                +0.1
+                Piel
               </button>
             </div>
           </div>
+
+          {/* Setpoint Temperatura Aire - Solo visible cuando modo AIR */}
+          {currentMode === "AIR" && (
+            <div className="border rounded p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">Setpoint Temp Aire (25-40°C)</span>
+                <span className="text-lg">{spAir.toFixed(1)}°C</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => adjustSpAir(-0.1)}
+                  className="px-3 py-1 rounded border"
+                  disabled={spAir <= 25}
+                >
+                  -0.1
+                </button>
+                <button
+                  onClick={() => adjustSpAir(0.1)}
+                  className="px-3 py-1 rounded border"
+                  disabled={spAir >= 40}
+                >
+                  +0.1
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Setpoint Temperatura Piel - Solo visible cuando modo SKIN */}
+          {currentMode === "SKIN" && (
+            <div className="border rounded p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">Setpoint Temp Piel (30-37°C)</span>
+                <span className="text-lg">{spSkin.toFixed(1)}°C</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => adjustSpSkin(-0.1)}
+                  className="px-3 py-1 rounded border"
+                  disabled={spSkin <= 30}
+                >
+                  -0.1
+                </button>
+                <button
+                  onClick={() => adjustSpSkin(0.1)}
+                  className="px-3 py-1 rounded border"
+                  disabled={spSkin >= 37}
+                >
+                  +0.1
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Setpoint Humedad */}
           <div className="border rounded p-3">
@@ -483,9 +494,9 @@ export default function LiveDataPage() {
                 Ictericia
               </button>
               <button
-                onClick={() => setLightModeCmd("PBM")}
+                onClick={() => setLightModeCmd("PHOTOBIOMODULATION")}
                 className={`px-3 py-1 rounded border ${
-                  lightMode === "PBM" ? "bg-yellow-200" : ""
+                  lightMode === "PHOTOBIOMODULATION" ? "bg-yellow-200" : ""
                 }`}
               >
                 Fotobiomodulacion
