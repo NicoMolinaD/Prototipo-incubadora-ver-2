@@ -65,6 +65,38 @@ def login(
 def read_users_me(current_user: models.User = Depends(get_current_active_user)):
     return current_user
 
+@router.post("/create-first-admin", response_model=schemas.UserOut)
+def create_first_admin(
+    user_data: schemas.UserCreate,
+    db: Session = Depends(get_db),
+):
+    admin_count = db.query(models.User).filter(models.User.is_admin == True).count()
+    if admin_count > 0:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin users already exist. Use /create-admin endpoint with admin authentication."
+        )
+    
+    db_user = db.query(models.User).filter(models.User.username == user_data.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    hashed_password = get_password_hash(user_data.password)
+    db_user = models.User(
+        username=user_data.username,
+        email=user_data.email,
+        hashed_password=hashed_password,
+        is_admin=True,
+        is_active=True,
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
 @router.post("/create-admin", response_model=schemas.UserOut)
 def create_admin(
     user_data: schemas.UserCreate,

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-export default function RegisterPage() {
+export default function CreateFirstAdminPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +28,7 @@ export default function RegisterPage() {
 
     try {
       const BASE = (import.meta.env.VITE_API_BASE as string) || (location.origin + "/api/incubadora");
-      const response = await fetch(`${BASE}/auth/register`, {
+      const response = await fetch(`${BASE}/auth/create-first-admin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
@@ -36,17 +36,17 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || "Error al registrar usuario");
+        throw new Error(errorData.detail || "Error al crear administrador");
       }
 
       const userData = await response.json();
       if (userData && userData.id) {
-        navigate("/login", { state: { message: "Usuario registrado exitosamente. Por favor inicia sesion." } });
+        navigate("/login", { state: { message: "Administrador creado exitosamente. Por favor inicia sesion." } });
       } else {
         navigate("/login");
       }
     } catch (err: any) {
-      setError(err.message || "Error al registrar usuario");
+      setError(err.message || "Error al crear administrador");
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,10 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-500 to-blue-700 p-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6 transition-all">
-        <h1 className="text-2xl font-semibold text-center mb-4">Crear cuenta</h1>
+        <h1 className="text-2xl font-semibold text-center mb-4">Crear Primer Administrador</h1>
+        <p className="text-sm text-center text-slate-600 mb-4">
+          Crea el primer usuario administrador del sistema
+        </p>
         {error && (
           <div className="mb-4 text-red-600 text-sm text-center">{error}</div>
         )}
@@ -114,7 +117,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors duration-200 disabled:opacity-50"
           >
-            {loading ? "Registrando..." : "Registrarse"}
+            {loading ? "Creando..." : "Crear Administrador"}
           </button>
         </form>
         <p className="mt-4 text-sm text-center">

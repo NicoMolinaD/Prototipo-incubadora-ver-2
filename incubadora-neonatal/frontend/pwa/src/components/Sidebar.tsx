@@ -8,22 +8,42 @@ interface SidebarItem {
 }
 
 const allItems: SidebarItem[] = [
-  { to: "/dashboards", label: "Dashboards", icon: "?" },
-  { to: "/live", label: "Live Data", icon: "?" },
-  { to: "/devices", label: "Dispositivos", icon: "?" },
-  { to: "/alerts", label: "Alertas", icon: "?" },
-  { to: "/models", label: "Modelos", icon: "?", adminOnly: true },
-  { to: "/settings", label: "Configuracion", icon: "??" },
-  { to: "/data", label: "Data Management", icon: "??", adminOnly: true },
-  { to: "/users", label: "Usuarios", icon: "??", adminOnly: true },
+  { to: "/dashboards", label: "Dashboards", icon: "📊" },
+  { to: "/live", label: "Live Data", icon: "📈" },
+  { to: "/devices", label: "Dispositivos", icon: "🔌" },
+  { to: "/alerts", label: "Alertas", icon: "🔔" },
+  { to: "/models", label: "Modelos", icon: "🤖", adminOnly: true },
+  { to: "/settings", label: "Configuracion", icon: "⚙️" },
+  { to: "/data", label: "Data Management", icon: "🗂", adminOnly: true },
+  { to: "/users", label: "Usuarios", icon: "👥", adminOnly: true },
 ];
 
-export default function Sidebar({ activePath, isAdmin }: { activePath: string; isAdmin: boolean }) {
+interface SidebarProps {
+  activePath: string;
+  isAdmin: boolean;
+  isOpen: boolean;
+  toggle: () => void;
+}
+
+export default function Sidebar({ activePath, isAdmin, isOpen, toggle }: SidebarProps) {
   const items = allItems.filter((item) => !item.adminOnly || isAdmin);
 
   return (
-    <aside className="hidden lg:block fixed top-0 left-0 h-screen w-64 bg-slate-900 text-slate-100">
-      <div className="px-4 py-4 text-lg font-semibold">Device Visualization</div>
+    <aside
+      className={`fixed top-0 left-0 h-screen w-64 bg-slate-900 text-slate-100 transform transition-transform duration-300 z-30 ${
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      }`}
+    >
+      <div className="px-4 py-4 text-lg font-semibold flex items-center justify-between">
+        <span>MARSUPIA</span>
+        <button
+          onClick={toggle}
+          className="lg:hidden text-slate-100 hover:text-white focus:outline-none"
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
+      </div>
       <nav className="px-2 space-y-1">
         {items.map((it) => {
           const active = activePath.startsWith(it.to);
@@ -32,11 +52,14 @@ export default function Sidebar({ activePath, isAdmin }: { activePath: string; i
               key={it.to}
               to={it.to}
               className={
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm " +
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors " +
                 (active
                   ? "bg-slate-800 text-white"
-                  : "text-slate-200 hover:bg-slate-800/60")
+                  : "text-slate-300 hover:bg-slate-800/60 hover:text-white")
               }
+              onClick={() => {
+                if (isOpen) toggle();
+              }}
             >
               <span>{it.icon}</span>
               <span>{it.label}</span>

@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-api = APIRouter(prefix="/api/incubadora")
+api = APIRouter(prefix="/incubadora")
 api.include_router(auth)
 api.include_router(ingest)
 api.include_router(query)
