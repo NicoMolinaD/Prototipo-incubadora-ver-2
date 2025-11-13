@@ -15,11 +15,11 @@ app.add_middleware(
 )
 
 api = APIRouter(prefix="/api/incubadora")
-api.include_router(auth.router)
-api.include_router(ingest.router)
-api.include_router(query.router)
-api.include_router(alerts.router)
-api.include_router(models_router.router)
+api.include_router(auth)
+api.include_router(ingest)
+api.include_router(query)
+api.include_router(alerts)
+api.include_router(models_router)
 
 app.include_router(api)
 @app.get("/healthz")
