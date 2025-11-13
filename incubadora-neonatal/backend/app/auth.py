@@ -2,6 +2,7 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
+import hashlib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -14,21 +15,40 @@ SECRET_KEY = "your-secret-key-change-in-production-use-env-var"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_pwd_context = None
+
+def _get_pwd_context():
+    global _pwd_context
+    if _pwd_context is None:
+        _pwd_context = CryptContext(
+            schemes=["bcrypt"],
+            deprecated="auto",
+            bcrypt__ident="2b",
+            bcrypt__rounds=12
+        )
+    return _pwd_context
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/incubadora/auth/login")
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    password_bytes = plain_password.encode('utf-8')
-    if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-    truncated_password = password_bytes.decode('utf-8', errors='ignore')
-    return pwd_context.verify(truncated_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
+def _prehash_password(password: str) -> str:
     password_bytes = password.encode('utf-8')
     if len(password_bytes) > 72:
-        password_bytes = password_bytes[:72]
-    return pwd_context.hash(password_bytes.decode('utf-8', errors='ignore'))
+        sha256_hash = hashlib.sha256(password_bytes).hexdigest()
+        return sha256_hash
+    if len(password_bytes) > 50:
+        sha256_hash = hashlib.sha256(password_bytes).hexdigest()
+        return sha256_hash
+    return password
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    prehashed = _prehash_password(plain_password)
+    ctx = _get_pwd_context()
+    return ctx.verify(prehashed, hashed_password)
+
+def get_password_hash(password: str) -> str:
+    prehashed = _prehash_password(password)
+    ctx = _get_pwd_context()
+    return ctx.hash(prehashed)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
