@@ -2,7 +2,6 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Optional
-import hashlib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -15,40 +14,19 @@ SECRET_KEY = "your-secret-key-change-in-production-use-env-var"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-_pwd_context = None
-
-def _get_pwd_context():
-    global _pwd_context
-    if _pwd_context is None:
-        _pwd_context = CryptContext(
-            schemes=["bcrypt"],
-            deprecated="auto",
-            bcrypt__ident="2b",
-            bcrypt__rounds=12
-        )
-    return _pwd_context
+pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256"],
+    deprecated="auto",
+    pbkdf2_sha256__default_rounds=29000
+)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/incubadora/auth/login")
 
-def _prehash_password(password: str) -> str:
-    password_bytes = password.encode('utf-8')
-    if len(password_bytes) > 72:
-        sha256_hash = hashlib.sha256(password_bytes).hexdigest()
-        return sha256_hash
-    if len(password_bytes) > 50:
-        sha256_hash = hashlib.sha256(password_bytes).hexdigest()
-        return sha256_hash
-    return password
-
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    prehashed = _prehash_password(plain_password)
-    ctx = _get_pwd_context()
-    return ctx.verify(prehashed, hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    prehashed = _prehash_password(password)
-    ctx = _get_pwd_context()
-    return ctx.hash(prehashed)
+    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
