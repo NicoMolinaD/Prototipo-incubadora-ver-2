@@ -133,6 +133,11 @@ export default function LiveDataPage() {
   const [spHum, setSpHum] = useState<number>(55.0);
   const [lightMode, setLightMode] = useState<string>("CIRCADIAN");
   const [currentMode, setCurrentMode] = useState<string>("AIR");
+  
+  // Estado de mute de alarmas
+  const [alarmsMuted, setAlarmsMuted] = useState<boolean>(false);
+  const muteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastDataRef = useRef<{ temp_aire_c?: number; temp_piel_c?: number; humedad?: number } | null>(null);
 
   // Poll de dispositivos (cada 5 s)
   useEffect(() => {
@@ -341,6 +346,74 @@ export default function LiveDataPage() {
       sendBLE(`TSPS=${spSkin.toFixed(1)}`);
     }
   }, [sendBLE, spAir, spSkin]);
+
+  // Funcion para mutear alarmas
+  const muteAlarms = useCallback(() => {
+    if (!bleConnected) {
+      alert("No hay conexion BLE");
+      return;
+    }
+    
+    // Mutea las alarmas
+    sendBLE("MUTE=ON");
+    setAlarmsMuted(true);
+    
+    // Limpia timeout anterior si existe
+    if (muteTimeoutRef.current) {
+      clearTimeout(muteTimeoutRef.current);
+    }
+    
+    // Desmutear automaticamente despues de 10 segundos
+    muteTimeoutRef.current = setTimeout(() => {
+      sendBLE("MUTE=OFF");
+      setAlarmsMuted(false);
+      muteTimeoutRef.current = null;
+    }, 10000);
+  }, [bleConnected, sendBLE]);
+
+  // Monitorear cambios en los datos para detectar nuevas alarmas
+  useEffect(() => {
+    if (!latest || !alarmsMuted) return;
+    
+    const current = {
+      temp_aire_c: latest.temp_aire_c,
+      temp_piel_c: latest.temp_piel_c,
+      humedad: latest.humedad,
+    };
+    
+    const last = lastDataRef.current;
+    
+    // Si hay cambios significativos, puede ser una nueva alarma
+    if (last) {
+      const tempAirChanged = last.temp_aire_c !== undefined && current.temp_aire_c !== undefined &&
+        Math.abs(last.temp_aire_c - current.temp_aire_c) > 2.0;
+      const tempSkinChanged = last.temp_piel_c !== undefined && current.temp_piel_c !== undefined &&
+        Math.abs(last.temp_piel_c - current.temp_piel_c) > 2.0;
+      const humChanged = last.humedad !== undefined && current.humedad !== undefined &&
+        Math.abs(last.humedad - current.humedad) > 10.0;
+      
+      if (tempAirChanged || tempSkinChanged || humChanged) {
+        // Desmutear para que suene la nueva alarma
+        if (muteTimeoutRef.current) {
+          clearTimeout(muteTimeoutRef.current);
+          muteTimeoutRef.current = null;
+        }
+        sendBLE("MUTE=OFF");
+        setAlarmsMuted(false);
+      }
+    }
+    
+    lastDataRef.current = current;
+  }, [latest, alarmsMuted, sendBLE]);
+
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (muteTimeoutRef.current) {
+        clearTimeout(muteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const lastSeen = useMemo(() => latest?.ts ?? null, [latest]);
 
@@ -592,6 +665,29 @@ export default function LiveDataPage() {
               >
                 Fotobiomodulacion
               </button>
+            </div>
+          </div>
+
+          {/* Seccion: Control de Alarmas */}
+          <div className="border-2 rounded-lg p-4 bg-red-50">
+            <h3 className="text-lg font-semibold mb-3 text-slate-800">Control de Alarmas</h3>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={muteAlarms}
+                disabled={!bleConnected || alarmsMuted}
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
+                  alarmsMuted
+                    ? "bg-slate-400 text-white border-slate-400 cursor-not-allowed"
+                    : "bg-red-600 text-white border-red-600 hover:bg-red-700 shadow-md"
+                }`}
+              >
+                {alarmsMuted ? "Alarmas Silenciadas" : "Silenciar Alarmas"}
+              </button>
+              {alarmsMuted && (
+                <span className="text-sm text-slate-600">
+                  Las alarmas estan silenciadas. Se reactivaran automaticamente en 10 segundos o si se detecta una nueva alarma.
+                </span>
+              )}
             </div>
           </div>
         </div>
