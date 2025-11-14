@@ -20,17 +20,29 @@ export default function TimeSeriesChart({
   height = 300,
 }: TimeSeriesChartProps) {
   const chartData = useMemo(() => {
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
     return data
-      .filter((point) => point[dataKey] != null)
-      .map((point) => ({
-        time: new Date(point.ts).toLocaleTimeString("es-ES", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        timestamp: new Date(point.ts).getTime(),
-        value: point[dataKey] as number,
-      }))
+      .filter((point) => point && point[dataKey] != null && !isNaN(point[dataKey] as number))
+      .map((point) => {
+        try {
+          const date = new Date(point.ts);
+          return {
+            time: date.toLocaleTimeString("es-ES", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            timestamp: date.getTime(),
+            value: point[dataKey] as number,
+          };
+        } catch (e) {
+          return null;
+        }
+      })
+      .filter((item): item is { time: string; timestamp: number; value: number } => item !== null)
       .slice(-100); // Mostrar solo los últimos 100 puntos para mejor rendimiento
   }, [data, dataKey]);
 

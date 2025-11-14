@@ -77,8 +77,17 @@ export default function DashboardsPage() {
     } catch (err: any) {
       console.error("[Dashboards] Error fetching data:", err);
       const errorMessage = err.message || "Error al cargar los datos. Por favor, intenta de nuevo.";
+      
+      // Si es un error de autenticación, no establecer error local ya que se redirigirá
+      if (errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
+        // El handleResponse ya se encarga de redirigir, solo limpiamos el estado
+        setLoading(false);
+        return;
+      }
+      
+      // Para otros errores, mostrar el mensaje pero mantener los datos anteriores si existen
       setError(errorMessage);
-      setRows([]);
+      // No limpiar rows si ya tenemos datos, para que las gráficas sigan funcionando
       setDebugInfo(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
@@ -87,8 +96,10 @@ export default function DashboardsPage() {
 
   useEffect(() => {
     fetchData();
-    // Actualizar cada 5 segundos para tiempo real
-    const interval = setInterval(fetchData, 5000);
+    // Actualizar cada 10 segundos para tiempo real (reducido para evitar sobrecarga)
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
