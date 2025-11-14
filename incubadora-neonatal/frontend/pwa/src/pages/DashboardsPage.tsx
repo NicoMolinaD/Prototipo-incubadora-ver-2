@@ -28,34 +28,57 @@ export default function DashboardsPage() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [hasDevices, setHasDevices] = useState<boolean>(true);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   const fetchData = useCallback(async () => {
     try {
       setError(null);
+      setLoading(true);
       
       // Primero verificar si hay dispositivos vinculados
       const devices = await getDevices();
+      console.log("[Dashboards] Dispositivos obtenidos:", devices);
+      
       if (devices.length === 0) {
         setHasDevices(false);
         setRows([]);
         setLoading(false);
+        setDebugInfo("No hay dispositivos vinculados");
         return;
       }
       
       setHasDevices(true);
+      setDebugInfo(`${devices.length} dispositivo(s) vinculado(s)`);
       
       // Obtener datos de todos los dispositivos vinculados
+      // El backend ya devuelve los datos en orden ascendente (más antiguo primero)
       const data = await getSeries({ since_minutes: 6 * 60, limit: 2000 });
-      setRows(data.reverse()); // asc
+      console.log("[Dashboards] Datos obtenidos:", data.length, "registros");
+      console.log("[Dashboards] Primeros 3 registros:", data.slice(0, 3));
+      
+      // Los datos ya vienen en orden ascendente del backend, no necesitamos reverse
+      // Solo asegurémonos de que estén ordenados correctamente
+      const sortedData = [...data].sort((a, b) => {
+        const dateA = new Date(a.ts).getTime();
+        const dateB = new Date(b.ts).getTime();
+        return dateA - dateB; // Ascendente (más antiguo primero)
+      });
+      
+      setRows(sortedData);
       setLastUpdate(new Date());
       
-      if (data.length === 0) {
+      if (sortedData.length === 0) {
         setError("No hay datos disponibles. Asegúrate de que tus dispositivos estén enviando mediciones.");
+        setDebugInfo("No hay datos en los últimos 6 horas");
+      } else {
+        setDebugInfo(`${sortedData.length} registros cargados`);
       }
     } catch (err: any) {
-      console.error("Error fetching data:", err);
-      setError(err.message || "Error al cargar los datos. Por favor, intenta de nuevo.");
+      console.error("[Dashboards] Error fetching data:", err);
+      const errorMessage = err.message || "Error al cargar los datos. Por favor, intenta de nuevo.";
+      setError(errorMessage);
       setRows([]);
+      setDebugInfo(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -144,7 +167,7 @@ export default function DashboardsPage() {
   }
 
   // Mostrar mensaje de error o sin datos
-  if (error || rows.length === 0) {
+  if (error || (rows.length === 0 && !loading)) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -155,6 +178,11 @@ export default function DashboardsPage() {
             <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
               Monitoreo en tiempo real • Última actualización: {lastUpdate.toLocaleTimeString()}
             </p>
+            {debugInfo && (
+              <p className="text-xs mt-1 font-mono" style={{ color: colors.textSecondary }}>
+                Debug: {debugInfo}
+              </p>
+            )}
           </div>
           <button
             onClick={fetchData}
@@ -179,6 +207,11 @@ export default function DashboardsPage() {
           <p className="text-sm mb-4" style={{ color: colors.textSecondary }}>
             {error || "Asegúrate de que tus dispositivos estén enviando mediciones."}
           </p>
+          {debugInfo && (
+            <p className="text-xs mb-4 font-mono" style={{ color: colors.textSecondary }}>
+              {debugInfo}
+            </p>
+          )}
           <button
             onClick={fetchData}
             className="px-4 py-2 rounded-lg font-medium"
@@ -205,6 +238,11 @@ export default function DashboardsPage() {
           <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
             Monitoreo en tiempo real • Última actualización: {lastUpdate.toLocaleTimeString()}
           </p>
+          {debugInfo && (
+            <p className="text-xs mt-1 font-mono" style={{ color: colors.textSecondary }}>
+              {debugInfo}
+            </p>
+          )}
         </div>
         <button
           onClick={fetchData}
