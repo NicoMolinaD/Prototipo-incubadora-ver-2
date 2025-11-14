@@ -17,14 +17,14 @@ echo ""
 echo "1. Verificando configuración DNS..."
 RESOLVED_IP=$(dig +short ${DOMAIN} | tail -n1)
 if [ -z "$RESOLVED_IP" ]; then
-    echo "   ❌ ERROR: No se pudo resolver ${DOMAIN}"
+    echo "   ERROR: No se pudo resolver ${DOMAIN}"
     echo "   Verifica que el DNS esté configurado en GoDaddy"
 else
-    echo "   ✓ ${DOMAIN} resuelve a: ${RESOLVED_IP}"
+    echo "   ${DOMAIN} resuelve a: ${RESOLVED_IP}"
     if [ "$RESOLVED_IP" = "$EXPECTED_IP" ]; then
-        echo "   ✓ La IP coincide con la esperada (${EXPECTED_IP})"
+        echo "   La IP coincide con la esperada (${EXPECTED_IP})"
     else
-        echo "   ⚠️  ADVERTENCIA: La IP (${RESOLVED_IP}) no coincide con la esperada (${EXPECTED_IP})"
+        echo "   ADVERTENCIA: La IP (${RESOLVED_IP}) no coincide con la esperada (${EXPECTED_IP})"
         echo "   Verifica la configuración DNS en GoDaddy"
     fi
 fi
@@ -35,9 +35,9 @@ echo "2. Verificando IP del servidor..."
 CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "No se pudo obtener")
 echo "   IP pública del servidor: ${CURRENT_IP}"
 if [ "$CURRENT_IP" = "$EXPECTED_IP" ]; then
-    echo "   ✓ La IP del servidor coincide"
+    echo "   La IP del servidor coincide"
 else
-    echo "   ⚠️  La IP del servidor puede ser diferente"
+    echo "   La IP del servidor puede ser diferente"
 fi
 echo ""
 
@@ -48,21 +48,21 @@ if command -v netstat &> /dev/null; then
     PORT_443=$(sudo netstat -tlnp | grep ':443 ' || echo "")
     
     if [ -n "$PORT_80" ]; then
-        echo "   ⚠️  Puerto 80 está en uso:"
+        echo "   Puerto 80 está en uso:"
         echo "   $PORT_80"
         echo "   Esto puede causar problemas. Asegúrate de detener nginx antes de ejecutar certbot."
     else
-        echo "   ✓ Puerto 80 está libre"
+        echo "   Puerto 80 está libre"
     fi
     
     if [ -n "$PORT_443" ]; then
         echo "   Puerto 443 está en uso:"
         echo "   $PORT_443"
     else
-        echo "   ✓ Puerto 443 está libre"
+        echo "   Puerto 443 está libre"
     fi
 else
-    echo "   ⚠️  netstat no está disponible, no se puede verificar"
+    echo "   netstat no está disponible, no se puede verificar"
 fi
 echo ""
 
@@ -73,13 +73,13 @@ if command -v ufw &> /dev/null; then
     echo "   Estado UFW: $UFW_STATUS"
     if echo "$UFW_STATUS" | grep -q "active"; then
         echo "   Verificando reglas para puertos 80 y 443..."
-        sudo ufw status | grep -E "(80|443)" || echo "   ⚠️  No se encontraron reglas específicas para 80/443"
+        sudo ufw status | grep -E "(80|443)" || echo "   No se encontraron reglas específicas para 80/443"
     fi
 elif command -v firewall-cmd &> /dev/null; then
     echo "   Firewalld detectado"
     sudo firewall-cmd --list-ports 2>/dev/null || echo "   No se pudo verificar firewalld"
 else
-    echo "   ℹ️  No se detectó firewall local (puede estar usando iptables directamente)"
+    echo "   No se detectó firewall local (puede estar usando iptables directamente)"
 fi
 echo ""
 
@@ -88,10 +88,10 @@ echo "5. Verificando conectividad desde internet..."
 echo "   Probando acceso HTTP al dominio..."
 HTTP_TEST=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://${DOMAIN}" 2>/dev/null || echo "000")
 if [ "$HTTP_TEST" = "000" ]; then
-    echo "   ❌ ERROR: No se puede acceder a http://${DOMAIN} desde internet"
+    echo "   ERROR: No se puede acceder a http://${DOMAIN} desde internet"
     echo "   Esto indica un problema de firewall o Security Group"
 else
-    echo "   ✓ Se puede acceder a http://${DOMAIN} (código: ${HTTP_TEST})"
+    echo "   Se puede acceder a http://${DOMAIN} (código: ${HTTP_TEST})"
 fi
 echo ""
 
@@ -103,13 +103,13 @@ if command -v docker &> /dev/null; then
         NGINX_STATUS=$(docker inspect --format='{{.State.Status}}' $NGINX_CONTAINER 2>/dev/null || echo "unknown")
         echo "   Contenedor nginx encontrado: ${NGINX_CONTAINER} (estado: ${NGINX_STATUS})"
         if [ "$NGINX_STATUS" = "running" ]; then
-            echo "   ⚠️  ADVERTENCIA: Nginx está corriendo. Debe detenerse antes de obtener certificados."
+            echo "   ADVERTENCIA: Nginx está corriendo. Debe detenerse antes de obtener certificados."
         fi
     else
-        echo "   ℹ️  No se encontró contenedor nginx"
+        echo "   No se encontró contenedor nginx"
     fi
 else
-    echo "   ℹ️  Docker no está disponible"
+    echo "   Docker no está disponible"
 fi
 echo ""
 

@@ -22,7 +22,7 @@ echo ""
 
 # Verificar que certbot está instalado
 if ! command -v certbot &> /dev/null; then
-    echo "❌ Certbot no está instalado."
+    echo "Certbot no está instalado."
     echo "Instalando certbot..."
     sudo apt-get update
     sudo apt-get install -y certbot
@@ -37,7 +37,7 @@ CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null
 EXPECTED_IP="3.148.116.136"
 
 if [ -z "$CURRENT_IP" ]; then
-    echo "⚠️  No se pudo obtener la IP del servidor"
+    echo "No se pudo obtener la IP del servidor"
     CURRENT_IP="desconocida"
 else
     echo "IP actual del servidor: ${CURRENT_IP}"
@@ -51,9 +51,9 @@ if command -v dig &> /dev/null; then
     if [ -n "$RESOLVED_IP" ]; then
         echo "IP a la que apunta ${DOMAIN}: ${RESOLVED_IP}"
         if [ "$RESOLVED_IP" = "$CURRENT_IP" ]; then
-            echo "✓ El dominio apunta a la IP actual del servidor"
+            echo "El dominio apunta a la IP actual del servidor"
         elif [ "$RESOLVED_IP" = "$EXPECTED_IP" ] && [ "$CURRENT_IP" != "$EXPECTED_IP" ]; then
-            echo "⚠️  ADVERTENCIA: El dominio apunta a ${EXPECTED_IP}, pero el servidor tiene IP ${CURRENT_IP}"
+            echo "ADVERTENCIA: El dominio apunta a ${EXPECTED_IP}, pero el servidor tiene IP ${CURRENT_IP}"
             echo "   Necesitas asignar la IP elástica ${EXPECTED_IP} a esta instancia EC2"
             echo ""
             echo "   Para asignar la IP elástica:"
@@ -69,15 +69,15 @@ if command -v dig &> /dev/null; then
                 exit 1
             fi
         else
-            echo "⚠️  ADVERTENCIA: El dominio apunta a ${RESOLVED_IP}, que no coincide con ninguna IP esperada"
+            echo "ADVERTENCIA: El dominio apunta a ${RESOLVED_IP}, que no coincide con ninguna IP esperada"
             echo "   Debes actualizar el DNS en GoDaddy para que apunte a: ${CURRENT_IP}"
         fi
     else
-        echo "⚠️  No se pudo resolver el dominio ${DOMAIN}"
+        echo "No se pudo resolver el dominio ${DOMAIN}"
     fi
 fi
 echo ""
-echo "⚠️  IMPORTANTE: Asegúrate de que:"
+echo "IMPORTANTE: Asegúrate de que:"
 echo "   1. El dominio ${DOMAIN} apunta a la IP correcta en GoDaddy"
 echo "   2. Los registros DNS están propagados (puede tardar hasta 48 horas)"
 echo "   3. Los puertos 80 y 443 están abiertos en el Security Group de AWS"
@@ -109,7 +109,7 @@ echo "Verificando que el puerto 80 está libre..."
 if command -v netstat &> /dev/null; then
     PORT_80_IN_USE=$(sudo netstat -tlnp 2>/dev/null | grep ':80 ' || echo "")
     if [ -n "$PORT_80_IN_USE" ]; then
-        echo "⚠️  ADVERTENCIA: El puerto 80 está en uso:"
+        echo "ADVERTENCIA: El puerto 80 está en uso:"
         echo "$PORT_80_IN_USE"
         echo ""
         echo "Por favor, detén el servicio que está usando el puerto 80 antes de continuar."
@@ -120,7 +120,7 @@ if command -v netstat &> /dev/null; then
             exit 1
         fi
     else
-        echo "✓ Puerto 80 está libre"
+        echo "Puerto 80 está libre"
     fi
 fi
 
@@ -147,7 +147,7 @@ sudo certbot certonly --standalone \
 
 # Verificar que los certificados se generaron correctamente
 if [ ! -f "${LETSENCRYPT_DIR}/fullchain.pem" ] || [ ! -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
-    echo "❌ Error: Los certificados no se generaron correctamente."
+    echo "Error: Los certificados no se generaron correctamente."
     exit 1
 fi
 
@@ -163,7 +163,7 @@ sudo chmod 600 "${CERT_DIR}/privkey.pem"
 sudo chown $USER:$USER "${CERT_DIR}/fullchain.pem" "${CERT_DIR}/privkey.pem" 2>/dev/null || true
 
 echo ""
-echo "✅ Certificados obtenidos y copiados exitosamente!"
+echo "Certificados obtenidos y copiados exitosamente!"
 echo ""
 echo "Ubicación de los certificados:"
 echo "  - ${CERT_DIR}/fullchain.pem"

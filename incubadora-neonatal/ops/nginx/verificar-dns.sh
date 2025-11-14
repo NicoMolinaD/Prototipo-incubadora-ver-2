@@ -24,7 +24,7 @@ elif command -v nslookup &> /dev/null; then
     RESOLVED_IP=$(nslookup ${DOMAIN} | grep -A1 "Name:" | tail -n1 | awk '{print $2}')
     echo "   ${RESOLVED_IP}"
 else
-    echo "   ⚠️  No se encontró dig ni nslookup"
+    echo "   No se encontró dig ni nslookup"
     RESOLVED_IP=""
 fi
 echo ""
@@ -39,16 +39,16 @@ echo ""
 if [ "$RESOLVED_IP" = "$CURRENT_IP" ]; then
     echo "   ✓ El dominio apunta a la IP actual del servidor"
     if [ "$CURRENT_IP" != "$EXPECTED_IP" ]; then
-        echo "   ⚠️  PERO: La IP del servidor (${CURRENT_IP}) no coincide con la IP elástica esperada (${EXPECTED_IP})"
+        echo "   PERO: La IP del servidor (${CURRENT_IP}) no coincide con la IP elástica esperada (${EXPECTED_IP})"
         echo "   Esto puede significar que:"
         echo "   - La instancia EC2 no tiene la IP elástica asignada"
         echo "   - O el dominio debe apuntar a ${CURRENT_IP} en lugar de ${EXPECTED_IP}"
     fi
 elif [ "$RESOLVED_IP" = "$EXPECTED_IP" ]; then
-    echo "   ⚠️  El dominio apunta a ${EXPECTED_IP}, pero el servidor tiene IP ${CURRENT_IP}"
+    echo "   El dominio apunta a ${EXPECTED_IP}, pero el servidor tiene IP ${CURRENT_IP}"
     echo "   Necesitas asignar la IP elástica ${EXPECTED_IP} a esta instancia EC2"
 else
-    echo "   ❌ PROBLEMA: El dominio no apunta a ninguna de las IPs esperadas"
+    echo "   PROBLEMA: El dominio no apunta a ninguna de las IPs esperadas"
     echo "   Debes actualizar el DNS en GoDaddy para que apunte a: ${CURRENT_IP}"
 fi
 echo ""
@@ -70,16 +70,16 @@ echo "=========================================="
 echo "RECOMENDACIÓN:"
 echo "=========================================="
 if [ "$CURRENT_IP" != "$EXPECTED_IP" ]; then
-    echo "1. ⭐ RECOMENDADO: Asigna la IP elástica ${EXPECTED_IP} a esta instancia EC2"
+    echo "1. RECOMENDADO: Asigna la IP elástica ${EXPECTED_IP} a esta instancia EC2"
     echo "   Consulta: ASIGNAR-IP-ELASTICA.md para instrucciones detalladas"
     echo ""
     echo "2. O actualiza el DNS en GoDaddy para que apunte a ${CURRENT_IP}"
     echo "   (Menos recomendado: la IP puede cambiar si reinicias la instancia)"
 else
     if [ "$RESOLVED_IP" != "$CURRENT_IP" ]; then
-        echo "⚠️  El servidor tiene la IP correcta (${CURRENT_IP}), pero el DNS no apunta a ella"
+        echo "El servidor tiene la IP correcta (${CURRENT_IP}), pero el DNS no apunta a ella"
         echo ""
-        echo "⭐ ACCIÓN REQUERIDA: Actualiza el DNS en GoDaddy"
+        echo "ACCIÓN REQUERIDA: Actualiza el DNS en GoDaddy"
         echo "   Consulta: ACTUALIZAR-DNS-GODADDY.md para instrucciones detalladas"
         echo ""
         echo "   Cambios necesarios:"
@@ -94,7 +94,7 @@ echo ""
 
 # Verificar www
 if [ -n "$WWW_IP" ] && [ "$WWW_IP" != "$CURRENT_IP" ] && [ "$WWW_IP" != "$EXPECTED_IP" ]; then
-    echo "⚠️  IMPORTANTE: www.marsupia.online apunta a ${WWW_IP}"
+    echo "IMPORTANTE: www.marsupia.online apunta a ${WWW_IP}"
     echo "   Debes actualizar el registro www en GoDaddy para que apunte a:"
     if [ "$CURRENT_IP" = "$EXPECTED_IP" ]; then
         echo "   ${CURRENT_IP}"

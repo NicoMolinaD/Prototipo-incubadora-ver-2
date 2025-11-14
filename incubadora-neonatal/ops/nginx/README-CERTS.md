@@ -6,7 +6,7 @@ Este directorio contiene los certificados SSL necesarios para habilitar HTTPS en
 
 ### Opción 1: Script con OpenSSL (recomendado)
 
-Si tienes OpenSSL instalado en tu sistema:
+Si se tiene OpenSSL instalado en el sistema:
 
 ```bash
 cd incubadora-neonatal/ops/nginx
@@ -14,11 +14,11 @@ chmod +x generate-certs.sh
 ./generate-certs.sh [dominio]
 ```
 
-Si no especificas un dominio, se usará `localhost` por defecto.
+Si no se especifica un dominio, se usará `localhost` por defecto.
 
 ### Opción 2: Script con Docker
 
-Si no tienes OpenSSL instalado, puedes usar Docker:
+Si no se tiene OpenSSL instalado, se puede usar Docker:
 
 ```bash
 cd incubadora-neonatal/ops/nginx

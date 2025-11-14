@@ -28,11 +28,11 @@ if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey
     if [ -f "${COMPOSE_FILE}" ]; then
         docker compose -f "${COMPOSE_FILE}" restart nginx
     else
-        echo "⚠️  No se encontró docker-compose.prod.yml. Reinicia nginx manualmente."
+        echo "No se encontró docker-compose.prod.yml. Reinicia nginx manualmente."
     fi
     
-    echo "✅ Certificados renovados y nginx reiniciado."
+    echo "Certificados renovados y nginx reiniciado."
 else
-    echo "⚠️  Los certificados no necesitan renovación todavía."
+    echo "Los certificados no necesitan renovación todavía."
 fi
 
