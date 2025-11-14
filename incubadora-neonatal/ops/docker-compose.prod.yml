@@ -10,6 +10,11 @@ services:
       - db_data:/var/lib/postgresql/data
     networks:
       - incubadora_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U incubadora -d incubadora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -19,7 +24,8 @@ services:
     env_file:
       - ../.env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - incubadora_net
 
