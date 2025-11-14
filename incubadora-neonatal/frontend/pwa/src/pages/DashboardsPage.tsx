@@ -51,8 +51,9 @@ export default function DashboardsPage() {
       setDebugInfo(`${devices.length} dispositivo(s) vinculado(s)`);
       
       // Obtener datos de todos los dispositivos vinculados
+      // Reducir el límite para evitar timeouts (500 puntos son suficientes para gráficas)
       // El backend ya devuelve los datos en orden ascendente (más antiguo primero)
-      const data = await getSeries({ since_minutes: 6 * 60, limit: 2000 });
+      const data = await getSeries({ since_minutes: 6 * 60, limit: 500 });
       console.log("[Dashboards] Datos obtenidos:", data.length, "registros");
       console.log("[Dashboards] Primeros 3 registros:", data.slice(0, 3));
       

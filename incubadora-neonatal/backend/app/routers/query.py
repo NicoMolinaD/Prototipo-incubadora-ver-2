@@ -147,9 +147,11 @@ def series(
     if since_minutes:
         cutoff = datetime.utcnow() - timedelta(minutes=since_minutes)
         q = q.filter(models.Measurement.ts >= cutoff)
-    q = q.order_by(models.Measurement.ts.desc())
+    
+    # Ordenar ascendente directamente para evitar reverse() costoso
+    q = q.order_by(models.Measurement.ts.asc())
     if limit:
         q = q.limit(limit)
     rows = q.all()
-    # se devuelve ascendente para gráficos
-    return list(reversed(rows))
+    # Ya están en orden ascendente, no necesitamos reverse
+    return rows
