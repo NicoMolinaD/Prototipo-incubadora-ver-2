@@ -86,6 +86,7 @@ class DeviceRow(BaseModel):
     last_seen: Optional[str] = None
     is_linked: bool = False  # Indica si el dispositivo está vinculado al usuario actual
     name: Optional[str] = None  # Nombre opcional del dispositivo
+    metrics: Optional[DeviceMetrics] = None  # Métricas del dispositivo
 
 class MeasurementOut(BaseModel):
     id: int

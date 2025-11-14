@@ -39,10 +39,10 @@ def list_available_devices(
     result: List[schemas.DeviceRow] = []
     for entry in device_entries:
         device_record = all_devices.get(entry.id)
-        is_linked_to_current_user = (
+        is_linked_to_current_user = bool(
             device_record and device_record.user_id == current_user.id
         )
-        is_linked_to_other = (
+        is_linked_to_other = bool(
             device_record and device_record.user_id is not None and device_record.user_id != current_user.id
         )
 
