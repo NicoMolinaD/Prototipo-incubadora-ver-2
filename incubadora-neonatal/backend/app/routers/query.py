@@ -138,20 +138,61 @@ def series(
             .filter(models.Device.user_id == current_user.id)
             .all()
         ]
+        
+        # Debug: Log para ver qué device_ids están vinculados
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"User {current_user.id} has linked devices: {user_device_ids}")
+        
+        # Debug: Ver qué device_ids hay en las mediciones recientes (últimas 24 horas)
+        recent_cutoff = datetime.utcnow() - timedelta(hours=24)
+        recent_device_ids = [
+            d[0] for d in db.query(models.Measurement.device_id)
+            .filter(models.Measurement.ts >= recent_cutoff)
+            .distinct()
+            .limit(10)
+            .all()
+        ]
+        logger.info(f"Recent device_ids in measurements (last 24h): {recent_device_ids}")
+        
         if user_device_ids:
             q = q.filter(models.Measurement.device_id.in_(user_device_ids))
+            
+            # Debug: Verificar cuántas mediciones hay antes del filtro de tiempo
+            # Clonar la query para contar sin afectar la original
+            count_q = db.query(models.Measurement).filter(
+                models.Measurement.device_id.in_(user_device_ids)
+            )
+            total_before_time = count_q.count()
+            logger.info(f"Total measurements for user devices (before time filter): {total_before_time}")
         else:
             # Usuario sin dispositivos vinculados
+            logger.info(f"User {current_user.id} has no linked devices")
+            # Si hay device_ids recientes pero no vinculados, informar
+            if recent_device_ids:
+                logger.warning(f"Found recent device_ids {recent_device_ids} but user has no linked devices")
             return []
     
     if since_minutes:
         cutoff = datetime.utcnow() - timedelta(minutes=since_minutes)
         q = q.filter(models.Measurement.ts >= cutoff)
+        
+        # Debug: Verificar cuántas mediciones hay después del filtro de tiempo
+        import logging
+        logger = logging.getLogger(__name__)
+        count_after_time = q.count()
+        logger.info(f"Measurements after time filter (last {since_minutes} minutes): {count_after_time}")
     
     # Ordenar ascendente directamente para evitar reverse() costoso
     q = q.order_by(models.Measurement.ts.asc())
     if limit:
         q = q.limit(limit)
     rows = q.all()
+    
+    # Debug: Log final
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Returning {len(rows)} measurements for user {current_user.id}")
+    
     # Ya están en orden ascendente, no necesitamos reverse
     return rows

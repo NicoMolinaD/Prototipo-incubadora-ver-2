@@ -175,16 +175,18 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
     // 3) Actualizar UI con datos nuevos
     setLatestData((prev) => ({ ...(prev ?? {}), ...partial } as MeasurementOut));
 
-    // 4) Enviar al backend
-    const deviceId = deviceRef.current?.id ?? "esp32_demo";
-    const payload = {
-      device_id: deviceId,
-      ...partial,
-    };
+      // 4) Enviar al backend
+      // Usar el ID del dispositivo Bluetooth o un ID por defecto
+      const deviceId = deviceRef.current?.id ?? "esp32_demo";
+      const payload = {
+        device_id: deviceId,
+        ...partial,
+      };
 
-    ingest(payload as any).catch((err) => {
-      console.error("ingest failed", err);
-    });
+      console.log("[BluetoothContext] Sending data to backend with device_id:", deviceId);
+      ingest(payload as any).catch((err) => {
+        console.error("[BluetoothContext] ingest failed", err);
+      });
   }, []);
 
   const connect = useCallback(async () => {
