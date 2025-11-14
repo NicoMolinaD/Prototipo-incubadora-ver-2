@@ -23,7 +23,17 @@ class Settings(BaseSettings):
     model_ver: str = "v0.0.1"
 
     # IMPORTANTE: string crudo; lo convertimos a lista nosotros
-    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # Incluye orígenes para desarrollo web y Capacitor (Android/iOS)
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,capacitor://localhost,ionic://localhost,http://localhost"
+
+    # Collector (opcional, para recopilar datos de dispositivos ESP32)
+    esp32_devices: str = ""  # Lista separada por comas de URLs de dispositivos ESP32
+    collect_period_ms: str = "5000"  # Periodo de recolección en milisegundos
+
+    # JWT Secret Key (debe cambiarse en producción)
+    secret_key: str = "your-secret-key-change-in-production-use-env-var"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
     # ---- helpers seguros ----
     @property
@@ -47,5 +57,14 @@ class Settings(BaseSettings):
     @property
     def name(self) -> str:     # alias para api_title
         return self.api_title
+
+    # Aliases para compatibilidad con código existente
+    @property
+    def ESP32_DEVICES(self) -> str:
+        return self.esp32_devices
+
+    @property
+    def COLLECT_PERIOD_MS(self) -> str:
+        return self.collect_period_ms
 
 settings = Settings()

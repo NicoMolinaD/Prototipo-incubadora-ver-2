@@ -2,10 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Variables CSS para temas */
+:root {
+  --color-primary: #3b82f6;
+  --color-secondary: #64748b;
+  --color-background: #ffffff;
+  --color-card: #f8fafc;
+  --color-text: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-border: #e2e8f0;
+  --color-accent: #10b981;
+}
+
 /* Componentes utilitarios */
 .card {
-  @apply bg-white border border-slate-200 rounded-xl p-4 shadow-sm;
+  @apply rounded-xl p-4 shadow-sm transition-shadow duration-200;
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
 }
+
 .btn {
-  @apply inline-flex items-center px-3 py-2 rounded-md border border-slate-300 bg-white hover:bg-slate-50 text-sm;
+  @apply inline-flex items-center px-3 py-2 rounded-md text-sm transition-all duration-200;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  color: var(--color-text);
+}
+
+.btn:hover {
+  background-color: var(--color-background);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Aplicar tema al body */
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

@@ -1,8 +1,14 @@
 // src/api/client.ts
-import { getApiBaseUrl } from './config';
 import type { DeviceRow } from './types';
 
-const BASE = getApiBaseUrl();
+// Determine the base URL for API calls.
+// The backend origin can be supplied via the VITE_API_BASE environment variable.
+// If it is undefined or empty, fall back to location.origin + "/api/incubadora"
+const BASE =
+  (import.meta.env.VITE_API_BASE as string) ||
+  (typeof window !== 'undefined' && window.location
+    ? window.location.origin + '/api/incubadora'
+    : 'http://localhost:8000/api/incubadora');
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem("token");

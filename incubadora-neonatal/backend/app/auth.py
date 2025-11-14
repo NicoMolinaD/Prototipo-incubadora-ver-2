@@ -9,10 +9,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from .db import get_db
 from . import models
+from .settings import settings
 
-SECRET_KEY = "your-secret-key-change-in-production-use-env-var"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = settings.secret_key
+ALGORITHM = settings.jwt_algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],

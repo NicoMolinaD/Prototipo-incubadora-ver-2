@@ -8,8 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 # Instala dependencias de compilación necesarias para algunas librerías
+# También instala bash que es necesario para el entrypoint script
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential curl && \
+    apt-get install -y --no-install-recommends build-essential curl bash && \
     rm -rf /var/lib/apt/lists/*
 
 # Copia requirements.txt e instala las dependencias de Python
