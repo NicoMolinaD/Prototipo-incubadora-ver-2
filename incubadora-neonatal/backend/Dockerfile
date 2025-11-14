@@ -14,11 +14,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copia requirements.txt e instala las dependencias de Python
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia el resto del codigo
-COPY . .
+# Copia el resto del codigo del backend
+COPY backend/ .
 
 # Da permiso de ejecucion al entrypoint
 RUN chmod +x docker-entrypoint.sh
