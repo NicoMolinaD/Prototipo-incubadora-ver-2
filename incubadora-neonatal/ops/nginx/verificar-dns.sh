@@ -70,10 +70,25 @@ echo "=========================================="
 echo "RECOMENDACIÓN:"
 echo "=========================================="
 if [ "$CURRENT_IP" != "$EXPECTED_IP" ]; then
-    echo "1. Asigna la IP elástica ${EXPECTED_IP} a esta instancia EC2, O"
-    echo "2. Actualiza el DNS en GoDaddy para que apunte a ${CURRENT_IP}"
+    echo "1. ⭐ RECOMENDADO: Asigna la IP elástica ${EXPECTED_IP} a esta instancia EC2"
+    echo "   Consulta: ASIGNAR-IP-ELASTICA.md para instrucciones detalladas"
+    echo ""
+    echo "2. O actualiza el DNS en GoDaddy para que apunte a ${CURRENT_IP}"
+    echo "   (Menos recomendado: la IP puede cambiar si reinicias la instancia)"
 else
     echo "Actualiza el DNS en GoDaddy para que apunte a ${CURRENT_IP}"
 fi
 echo ""
+
+# Verificar www
+if [ -n "$WWW_IP" ] && [ "$WWW_IP" != "$CURRENT_IP" ] && [ "$WWW_IP" != "$EXPECTED_IP" ]; then
+    echo "⚠️  IMPORTANTE: www.marsupia.online apunta a ${WWW_IP}"
+    echo "   Debes actualizar el registro www en GoDaddy para que apunte a:"
+    if [ "$CURRENT_IP" = "$EXPECTED_IP" ]; then
+        echo "   ${CURRENT_IP}"
+    else
+        echo "   ${EXPECTED_IP} (después de asignar la IP elástica)"
+    fi
+    echo ""
+fi
 
