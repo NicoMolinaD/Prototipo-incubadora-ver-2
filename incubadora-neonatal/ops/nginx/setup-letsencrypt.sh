@@ -52,8 +52,35 @@ fi
 # Detener nginx temporalmente si está corriendo (necesario para modo standalone)
 echo ""
 echo "Deteniendo nginx temporalmente para obtener certificados..."
-if docker compose ps nginx 2>/dev/null | grep -q "Up"; then
-    docker compose stop nginx || true
+if command -v docker &> /dev/null; then
+    # Intentar desde diferentes ubicaciones posibles
+    if [ -f "../../ops/docker-compose.prod.yml" ]; then
+        docker compose -f ../../ops/docker-compose.prod.yml stop nginx 2>/dev/null || true
+    elif [ -f "../docker-compose.prod.yml" ]; then
+        docker compose -f ../docker-compose.prod.yml stop nginx 2>/dev/null || true
+    elif docker compose ps nginx 2>/dev/null | grep -q "Up"; then
+        docker compose stop nginx 2>/dev/null || true
+    fi
+fi
+
+# Verificar que el puerto 80 está libre
+echo "Verificando que el puerto 80 está libre..."
+if command -v netstat &> /dev/null; then
+    PORT_80_IN_USE=$(sudo netstat -tlnp 2>/dev/null | grep ':80 ' || echo "")
+    if [ -n "$PORT_80_IN_USE" ]; then
+        echo "⚠️  ADVERTENCIA: El puerto 80 está en uso:"
+        echo "$PORT_80_IN_USE"
+        echo ""
+        echo "Por favor, detén el servicio que está usando el puerto 80 antes de continuar."
+        echo "O ejecuta: sudo lsof -i :80 para ver qué proceso lo está usando."
+        read -p "¿Deseas continuar de todas formas? (s/n): " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+            exit 1
+        fi
+    else
+        echo "✓ Puerto 80 está libre"
+    fi
 fi
 
 # Obtener certificados usando certbot en modo standalone
@@ -102,5 +129,7 @@ echo "  0 0 * * * certbot renew --quiet --deploy-hook 'docker compose -f /ruta/a
 echo ""
 echo "Ahora puedes iniciar nginx con:"
 echo "  docker compose -f ops/docker-compose.prod.yml up -d nginx"
+echo ""
+echo "Si tuviste problemas, consulta SOLUCION-FIREWALL.md para más ayuda."
 echo ""
 
