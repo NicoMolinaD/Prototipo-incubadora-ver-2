@@ -1,22 +1,8 @@
 // src/api/client.ts
-// Determine the base URL for API calls.  When building with Vite
-// (both dev and production) the backend origin can be supplied via
-// the VITE_API_BASE environment variable.  If undefined, fall back to
-// a relative prefix so local development with a proxy still works.
-// Determine the base URL for API calls.  The backend origin can be
-// supplied via the VITE_API_BASE environment variable.  If it is
-// undefined or empty, fall back to http://localhost:8000 which is
-// where the API is exposed when using Docker Compose.
-const API_ORIGIN =
-  (typeof import.meta !== "undefined" &&
-    (import.meta as any).env &&
-    (import.meta as any).env.VITE_API_BASE &&
-    (import.meta as any).env.VITE_API_BASE.trim()) ||
-  "http://localhost:8000";
-// frontend/pwa/src/api/client.ts
-const BASE =
-  (import.meta.env.VITE_API_BASE as string) ||
-  (location.origin + "/api/incubadora");
+import { getApiBaseUrl } from './config';
+import type { DeviceRow } from './types';
+
+const BASE = getApiBaseUrl();
 
 function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem("token");
@@ -131,4 +117,28 @@ export async function retrainModel() {
     method: "POST",
     headers: getAuthHeaders(),
   }));
+}
+
+// === Gestión de dispositivos ===
+export async function getAvailableDevices() {
+  const r = await fetch(`${BASE}/devices/available`, {
+    headers: getAuthHeaders(),
+  });
+  return j<DeviceRow[]>(r);
+}
+
+export async function linkDevice(device_id: string) {
+  const r = await fetch(`${BASE}/devices/${encodeURIComponent(device_id)}/link`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  return j<{ id: number; device_id: string; user_id: number | null; name: string | null }>(r);
+}
+
+export async function unlinkDevice(device_id: string) {
+  const r = await fetch(`${BASE}/devices/${encodeURIComponent(device_id)}/unlink`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+  });
+  return j<{ id: number; device_id: string; user_id: number | null; name: string | null }>(r);
 }

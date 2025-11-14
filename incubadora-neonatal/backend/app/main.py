@@ -2,7 +2,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from .settings import settings
 from fastapi import FastAPI, APIRouter
-from .routers import ingest, query, alerts, models_router, auth
+from .routers import ingest, query, alerts, models_router, auth, devices
 
 app = FastAPI(title="Incubadora API", version="v0.1.0")
 
@@ -20,6 +20,7 @@ api.include_router(ingest)
 api.include_router(query)
 api.include_router(alerts)
 api.include_router(models_router)
+api.include_router(devices)
 
 app.include_router(api)
 @app.get("/healthz")

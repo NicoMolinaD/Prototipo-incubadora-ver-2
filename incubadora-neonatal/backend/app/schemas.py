@@ -84,6 +84,8 @@ class IngestIn(BaseModel):
 class DeviceRow(BaseModel):
     id: str
     last_seen: Optional[str] = None
+    is_linked: bool = False  # Indica si el dispositivo está vinculado al usuario actual
+    name: Optional[str] = None  # Nombre opcional del dispositivo
 
 class MeasurementOut(BaseModel):
     id: int
@@ -131,4 +133,22 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+# === Dispositivos ===
+class DeviceBase(BaseModel):
+    device_id: str
+    name: Optional[str] = None
+
+class DeviceCreate(DeviceBase):
+    pass
+
+class DeviceOut(DeviceBase):
+    id: int
+    user_id: Optional[int] = None
+    created_at: datetime
+    updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class DeviceLinkRequest(BaseModel):
+    device_id: str
 

@@ -36,7 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = async (authToken: string) => {
     try {
-      const BASE = (import.meta.env.VITE_API_BASE as string) || (location.origin + "/api/incubadora");
+      // Usar el helper de configuración compatible con Capacitor
+      const { getApiBaseUrl } = await import('../api/config');
+      const BASE = getApiBaseUrl();
       const response = await fetch(`${BASE}/auth/me`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
@@ -59,7 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (username: string, password: string) => {
-    const BASE = (import.meta.env.VITE_API_BASE as string) || (location.origin + "/api/incubadora");
+    // Usar el helper de configuración compatible con Capacitor
+    const { getApiBaseUrl } = await import('../api/config');
+    const BASE = getApiBaseUrl();
     const formData = new FormData();
     formData.append("username", username);
     formData.append("password", password);

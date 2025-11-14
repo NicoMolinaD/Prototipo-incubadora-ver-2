@@ -11,8 +11,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Configuracion</h1>
+    <div className="space-y-6 p-4 md:p-6">
+      <h1 className="text-2xl font-semibold">Configuración</h1>
 
       <div className="card space-y-4">
         <div>

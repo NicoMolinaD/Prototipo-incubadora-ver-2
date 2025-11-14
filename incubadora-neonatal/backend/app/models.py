@@ -1,6 +1,7 @@
 # app/models.py
 from __future__ import annotations
-from sqlalchemy import Column, Integer, String, Float, DateTime, func, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, func, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from .db import Base
 
 class Measurement(Base):
@@ -30,3 +31,19 @@ class User(Base):
     is_admin = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    # Relación 1:N con Device
+    devices = relationship("Device", back_populates="user", cascade="all, delete-orphan")
+
+class Device(Base):
+    __tablename__ = "devices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    device_id = Column(String, unique=True, index=True, nullable=False)  # ID único del dispositivo físico
+    name = Column(String, nullable=True)  # Nombre opcional para el dispositivo
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # Nullable para permitir desvinculación
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    # Relación N:1 con User
+    user = relationship("User", back_populates="devices")

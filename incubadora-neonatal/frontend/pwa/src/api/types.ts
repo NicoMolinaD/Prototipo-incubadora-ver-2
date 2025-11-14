@@ -2,7 +2,13 @@
 export type ISODate = string;
 
 // frontend/pwa/src/api/types.ts
-export type DeviceRow = { id: string; last_seen: string | null };
+export type DeviceRow = { 
+  id: string; 
+  last_seen: string | null;
+  is_linked?: boolean;
+  name?: string | null;
+  metrics?: DeviceMetrics;
+};
 
 export type MeasurementOut = {
   ts: string;

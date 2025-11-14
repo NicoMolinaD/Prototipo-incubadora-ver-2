@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from ..db import get_db
 from .. import models, schemas
 from ..auth import get_current_active_user, get_current_admin_user
@@ -17,11 +17,11 @@ def list_devices(
     current_user: models.User = Depends(get_current_active_user),
 ) -> List[schemas.DeviceRow]:
     """
-    Devuelve todos los dispositivos junto con su ultima lectura.
+    Devuelve solo los dispositivos vinculados al usuario actual junto con su ultima lectura.
     Incluye un objeto 'metrics' con los valores mas recientes o vacio
     si aun no hay mediciones.
     """
-    # Consultar identificadores y �ltimo timestamp
+    # Obtener todos los device_ids de las mediciones
     device_entries = (
         db.query(
             models.Measurement.device_id.label("id"),
@@ -32,9 +32,21 @@ def list_devices(
         .all()
     )
 
+    # Obtener los dispositivos vinculados al usuario actual
+    user_devices = {
+        d.device_id: d for d in db.query(models.Device)
+        .filter(models.Device.user_id == current_user.id)
+        .all()
+    }
+
     result: List[schemas.DeviceRow] = []
     for entry in device_entries:
-        # �ltima medici�n para rellenar metrics
+        # Solo mostrar dispositivos vinculados al usuario actual
+        device_record = user_devices.get(entry.id)
+        if not device_record:
+            continue  # Saltar dispositivos no vinculados al usuario
+
+        # Última medición para rellenar metrics
         m = (
             db.query(models.Measurement)
             .filter(models.Measurement.device_id == entry.id)
@@ -52,13 +64,15 @@ def list_devices(
         else:
             metrics = schemas.DeviceMetrics()
 
-        # ? AQU� el cambio clave: datetime -> string ISO
+        # datetime -> string ISO
         last_seen_iso = entry.last_seen.isoformat() if entry.last_seen else None
 
         result.append(
             schemas.DeviceRow(
                 id=entry.id,
-                last_seen=last_seen_iso,  # <? ya no es datetime
+                last_seen=last_seen_iso,
+                is_linked=True,  # Todos los dispositivos aquí están vinculados
+                name=device_record.name,
                 metrics=metrics,
             )
         )
@@ -71,6 +85,18 @@ def latest(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
 ):
+    # Verificar que el dispositivo esté vinculado al usuario actual
+    device = db.query(models.Device).filter(
+        models.Device.device_id == device_id,
+        models.Device.user_id == current_user.id
+    ).first()
+    
+    if not device:
+        raise HTTPException(
+            status_code=403,
+            detail="Device not linked to your account or does not exist"
+        )
+    
     m = (
         db.query(models.Measurement)
         .filter(models.Measurement.device_id == device_id)
@@ -78,7 +104,7 @@ def latest(
         .first()
     )
     if not m:
-        raise HTTPException(status_code=404, detail="Not Found")
+        raise HTTPException(status_code=404, detail="No measurements found")
     return m
 
 @router.get("/series", response_model=List[schemas.SeriesPoint])
@@ -90,8 +116,34 @@ def series(
     current_user: models.User = Depends(get_current_active_user),
 ):
     q = db.query(models.Measurement)
+    
     if device_id:
+        # Verificar que el dispositivo esté vinculado al usuario actual
+        device = db.query(models.Device).filter(
+            models.Device.device_id == device_id,
+            models.Device.user_id == current_user.id
+        ).first()
+        
+        if not device:
+            raise HTTPException(
+                status_code=403,
+                detail="Device not linked to your account or does not exist"
+            )
+        
         q = q.filter(models.Measurement.device_id == device_id)
+    else:
+        # Si no se especifica device_id, solo mostrar mediciones de dispositivos del usuario
+        user_device_ids = [
+            d.device_id for d in db.query(models.Device)
+            .filter(models.Device.user_id == current_user.id)
+            .all()
+        ]
+        if user_device_ids:
+            q = q.filter(models.Measurement.device_id.in_(user_device_ids))
+        else:
+            # Usuario sin dispositivos vinculados
+            return []
+    
     if since_minutes:
         cutoff = datetime.utcnow() - timedelta(minutes=since_minutes)
         q = q.filter(models.Measurement.ts >= cutoff)
@@ -99,5 +151,5 @@ def series(
     if limit:
         q = q.limit(limit)
     rows = q.all()
-    # se devuelve ascendente para gr�ficos
+    # se devuelve ascendente para gráficos
     return list(reversed(rows))
