@@ -76,7 +76,19 @@ if [ "$CURRENT_IP" != "$EXPECTED_IP" ]; then
     echo "2. O actualiza el DNS en GoDaddy para que apunte a ${CURRENT_IP}"
     echo "   (Menos recomendado: la IP puede cambiar si reinicias la instancia)"
 else
-    echo "Actualiza el DNS en GoDaddy para que apunte a ${CURRENT_IP}"
+    if [ "$RESOLVED_IP" != "$CURRENT_IP" ]; then
+        echo "⚠️  El servidor tiene la IP correcta (${CURRENT_IP}), pero el DNS no apunta a ella"
+        echo ""
+        echo "⭐ ACCIÓN REQUERIDA: Actualiza el DNS en GoDaddy"
+        echo "   Consulta: ACTUALIZAR-DNS-GODADDY.md para instrucciones detalladas"
+        echo ""
+        echo "   Cambios necesarios:"
+        echo "   - Registro A para '@' (o en blanco): debe ser ${CURRENT_IP}"
+        echo "   - Registro A para 'www': debe ser ${CURRENT_IP}"
+    else
+        echo "✓ Todo está configurado correctamente!"
+        echo "   El dominio apunta a la IP del servidor"
+    fi
 fi
 echo ""
 
