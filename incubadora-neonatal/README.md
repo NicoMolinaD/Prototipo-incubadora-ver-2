@@ -1,5 +1,11 @@
 # Sistema de Monitoreo de Incubadora Neonatal
 
+<div align="center">
+  <img src="frontend/pwa/public/logo-marsupia.png" alt="Marsupia Logo" width="200" height="200" />
+  <h2>MARSUPIA</h2>
+  <p>Neonatal Incubator</p>
+</div>
+
 Sistema completo de monitoreo y gestión para incubadoras neonatales que integra hardware embebido, backend API, frontend web y servicios de infraestructura. El sistema permite la recolección de datos en tiempo real de sensores, almacenamiento en base de datos, visualización mediante interfaz web, y gestión de alertas y dispositivos.
 
 ## Arquitectura del Sistema
@@ -7,16 +13,16 @@ Sistema completo de monitoreo y gestión para incubadoras neonatales que integra
 El proyecto está estructurado en cuatro componentes principales:
 
 ### Backend (FastAPI)
-API REST desarrollada en Python con FastAPI que gestiona la ingesta de datos de sensores, consultas históricas, sistema de autenticación con JWT, gestión de usuarios y dispositivos, y generación de alertas. Utiliza PostgreSQL como base de datos y Alembic para migraciones.
+API REST desarrollada en Python con FastAPI que gestiona la ingesta de datos de sensores, consultas históricas, sistema de autenticación con JWT, gestión de usuarios y dispositivos, y generación de alertas. Utiliza PostgreSQL como base de datos y Alembic para migraciones. Incluye endpoints para actualización de cuenta de usuario, consultas de series temporales optimizadas, y sistema de alertas basado en umbrales.
 
 ### Frontend (React + TypeScript)
-Aplicación web progresiva (PWA) desarrollada con React, TypeScript y Vite. Proporciona una interfaz de usuario para visualización de datos en tiempo real, gestión de dispositivos, administración de usuarios, dashboards con gráficos de series temporales, y soporte para conexión Bluetooth con dispositivos ESP32.
+Aplicación web progresiva (PWA) desarrollada con React, TypeScript y Vite. Proporciona una interfaz de usuario moderna y responsive para visualización de datos en tiempo real, gestión de dispositivos, administración de usuarios, dashboards con gráficos de series temporales integrados, sistema de alertas en tiempo real, y soporte para conexión Bluetooth Low Energy (BLE) con dispositivos ESP32. Incluye sistema de temas personalizables, gestión de cuenta de usuario, y manejo unificado de errores de autenticación.
 
 ### Firmware (ESP32-S3)
 Código embebido para microcontroladores ESP32-S3 que gestiona la lectura de sensores (temperatura, humedad, peso), control de actuadores (calefacción, humidificación), comunicación Bluetooth Low Energy (BLE), y envío de datos al backend mediante HTTP.
 
 ### Infraestructura (Docker + Nginx)
-Configuración de despliegue con Docker Compose que orquesta los servicios de base de datos, backend, frontend y proxy reverso Nginx. Incluye configuración SSL/TLS para el dominio de producción, scripts de gestión de certificados, y configuración de red interna entre contenedores.
+Configuración de despliegue con Docker Compose que orquesta los servicios de base de datos, backend, frontend y proxy reverso Nginx. Incluye configuración SSL/TLS para el dominio de producción (`marsupia.online`), scripts de gestión de certificados Let's Encrypt, configuración de red interna entre contenedores, redirección automática HTTP a HTTPS, headers de seguridad, y timeouts optimizados para consultas de larga duración.
 
 ## Estructura del Proyecto
 

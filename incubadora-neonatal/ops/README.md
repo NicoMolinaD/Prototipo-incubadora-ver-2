@@ -34,12 +34,19 @@ Directorio que contiene la configuración de infraestructura, scripts de desplie
 
 Nginx actúa como proxy reverso único punto de entrada para todo el tráfico HTTP/HTTPS:
 
-- **Puerto 80 (HTTP)**: Redirige automáticamente todo el tráfico a HTTPS
+- **Puerto 80 (HTTP)**: Redirige automáticamente todo el tráfico a HTTPS mediante `return 301 https://$host$request_uri;`
 - **Puerto 443 (HTTPS)**: 
   - Ruta `/` → Proxy al servicio `web` (frontend) en el puerto 5173
-  - Ruta `/api/` → Proxy al servicio `api` (backend) en el puerto 8000
+  - Ruta `/api/incubadora/` → Proxy al servicio `api` (backend) en el puerto 8000 con reescritura a `/incubadora/`
 
-La configuración incluye headers de seguridad (HSTS, X-Frame-Options, etc.), soporte para WebSockets, y timeouts optimizados para diferentes tipos de peticiones.
+La configuración incluye:
+- Headers de seguridad (HSTS, X-Frame-Options, X-Content-Type-Options, Permissions-Policy)
+- Soporte para WebSockets en el frontend
+- Timeouts optimizados: 30 segundos para frontend, 60 segundos para backend (para consultas de larga duración)
+- Configuración de buffers para mejorar el rendimiento en peticiones grandes
+- Protocolos SSL modernos (TLSv1.2, TLSv1.3) con cifrados seguros
+
+**Nota importante**: El `proxy_pass` para el backend está configurado como `http://api:8000/incubadora/;` (con barra final) para que Nginx reescriba correctamente `/api/incubadora/auth/me` a `http://api:8000/incubadora/auth/me`, ya que el backend FastAPI utiliza el prefijo `/incubadora` en todos sus routers.
 
 ## Certificados SSL
 

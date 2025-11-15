@@ -18,9 +18,9 @@ API REST desarrollada en Python utilizando FastAPI para el sistema de monitoreo 
 ### Routers (Endpoints API)
 
 - `app/routers/ingest.py` - Endpoint `/ingest` para recibir datos de sensores desde dispositivos ESP32. Soporta múltiples formatos de payload (JSON estructurado, texto plano con parsing automático).
-- `app/routers/query.py` - Endpoints para consultar datos históricos: `/query/devices`, `/query/latest`, `/query/series` con filtros por dispositivo y rango temporal.
-- `app/routers/alerts.py` - Gestión de alertas generadas automáticamente basadas en umbrales de temperatura, humedad y otros parámetros.
-- `app/routers/auth.py` - Autenticación y registro de usuarios: `/register`, `/login` con OAuth2 password flow, generación de tokens JWT.
+- `app/routers/query.py` - Endpoints para consultar datos históricos: `/query/devices` (lista de dispositivos con última conexión), `/query/latest` (última medición por dispositivo), `/query/series` (series temporales con filtros por dispositivo, rango temporal, y límite de resultados). Optimizado para consultas frecuentes con índices en base de datos.
+- `app/routers/alerts.py` - Gestión de alertas generadas automáticamente basadas en umbrales de temperatura, humedad y otros parámetros. Endpoint `/alerts` con filtros por rango temporal (`since_minutes`) y límite de resultados. Las alertas se generan automáticamente durante la ingesta de datos cuando se detectan valores fuera de rangos seguros.
+- `app/routers/auth.py` - Autenticación y registro de usuarios: `/register`, `/login` con OAuth2 password flow, generación de tokens JWT. Incluye endpoints para gestión de usuarios (solo administradores) y actualización de cuenta propia (`PUT /auth/me`). El endpoint `PUT /auth/me` permite a los usuarios autenticados actualizar su propio username, email, y contraseña, con validación de unicidad para username y email.
 - `app/routers/devices.py` - Gestión de dispositivos: vinculación/desvinculación de dispositivos a usuarios, listado de dispositivos disponibles.
 - `app/routers/models_router.py` - Gestión de modelos de machine learning: estado del modelo, entrenamiento en background.
 
