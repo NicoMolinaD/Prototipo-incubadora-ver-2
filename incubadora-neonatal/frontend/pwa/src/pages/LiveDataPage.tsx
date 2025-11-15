@@ -36,9 +36,8 @@ export default function LiveDataPage() {
   const [current, setCurrent] = useState<string>("");
   const [latest, setLatest] = useState<MeasurementOut | null>(null);
 
-  // Estado para gráficas y estadísticas
+  // Estado para gráficas
   const [backendRows, setBackendRows] = useState<SeriesPoint[]>([]);
-  const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   // Estado de mute de alarmas
@@ -69,11 +68,9 @@ export default function LiveDataPage() {
     return backendRows;
   }, [backendRows, bleDataHistory]);
 
-  // Fetch de datos para gráficas y estadísticas
+  // Fetch de datos para gráficas
   const fetchBackendData = useCallback(async () => {
     try {
-      setLoading(true);
-      
       const devices = await getDevices();
       if (devices.length === 0 && !bleConnected) {
         setBackendRows([]);
@@ -91,8 +88,6 @@ export default function LiveDataPage() {
       setLastUpdate(new Date());
     } catch (err: any) {
       console.error("[LiveData] Error fetching data:", err);
-    } finally {
-      setLoading(false);
     }
   }, [bleConnected]);
 
@@ -103,120 +98,6 @@ export default function LiveDataPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [fetchBackendData]);
-
-  // Calcular estadísticas usando exactamente los mismos datos que las gráficas (allRows)
-  const kAire = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.temp_aire_c)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    if (validValues.length === 0) return null;
-    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
-  }, [allRows]);
-
-  const kPiel = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.temp_piel_c)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    if (validValues.length === 0) return null;
-    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
-  }, [allRows]);
-
-  const kHum = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.humedad)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    if (validValues.length === 0) return null;
-    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
-  }, [allRows]);
-
-  const kPeso = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.peso_g)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    if (validValues.length === 0) return null;
-    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
-  }, [allRows]);
-
-  const minAire = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.temp_aire_c)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    return validValues.length > 0 ? Math.min(...validValues) : null;
-  }, [allRows]);
-
-  const maxAire = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.temp_aire_c)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    return validValues.length > 0 ? Math.max(...validValues) : null;
-  }, [allRows]);
-
-  const minPiel = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.temp_piel_c)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    return validValues.length > 0 ? Math.min(...validValues) : null;
-  }, [allRows]);
-
-  const maxPiel = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.temp_piel_c)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    return validValues.length > 0 ? Math.max(...validValues) : null;
-  }, [allRows]);
-
-  const minHum = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.humedad)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    return validValues.length > 0 ? Math.min(...validValues) : null;
-  }, [allRows]);
-
-  const maxHum = useMemo(() => {
-    const validValues = allRows
-      .map((r) => r.humedad)
-      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
-    return validValues.length > 0 ? Math.max(...validValues) : null;
-  }, [allRows]);
-
-  // Componente de tarjeta de estadísticas
-  const StatCard = ({
-    title,
-    value,
-    unit,
-    min,
-    max,
-    icon,
-    color,
-  }: {
-    title: string;
-    value: number | null;
-    unit: string;
-    min?: number | null;
-    max?: number | null;
-    icon: string;
-    color: string;
-  }) => (
-    <div
-      className="card p-6 hover:shadow-lg transition-shadow duration-200"
-      style={{ borderLeft: `4px solid ${color}`, backgroundColor: colors.card, borderColor: colors.border }}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm font-medium" style={{ color: colors.textSecondary }}>
-          {title}
-        </div>
-        <div className="text-2xl">{icon}</div>
-      </div>
-      <div className="text-3xl font-bold mb-2" style={{ color: colors.text }}>
-        {value?.toFixed(1) ?? "--"} <span className="text-lg">{unit}</span>
-      </div>
-      {(min != null || max != null) && (
-        <div className="text-xs" style={{ color: colors.textSecondary }}>
-          Min: {min?.toFixed(1) ?? "--"} | Max: {max?.toFixed(1) ?? "--"}
-        </div>
-      )}
-    </div>
-  );
 
   // Poll de dispositivos (cada 5 s) - tiempo real
   useEffect(() => {
@@ -489,42 +370,23 @@ export default function LiveDataPage() {
         )}
       </div>
 
-      {/* Cards de estadísticas con apariencia de Dashboards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Temperatura Ambiente"
-          value={kAire}
-          unit="°C"
-          min={minAire}
-          max={maxAire}
-          icon="🌡️"
-          color="#3b82f6"
-        />
-        <StatCard
-          title="Temperatura Piel"
-          value={kPiel}
-          unit="°C"
-          min={minPiel}
-          max={maxPiel}
-          icon="👤"
-          color="#ef4444"
-        />
-        <StatCard
-          title="Humedad"
-          value={kHum}
-          unit="%"
-          min={minHum}
-          max={maxHum}
-          icon="💧"
-          color="#10b981"
-        />
-        <StatCard
-          title="Peso Promedio"
-          value={kPeso}
-          unit="g"
-          icon="⚖️"
-          color="#8b5cf6"
-        />
+      {/* Cards de métricas - Responsivo (originales) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card title="Timestamp" colors={colors}>
+          {displayData?.ts ? new Date(displayData.ts).toLocaleString("es-ES") : "--"}
+        </Card>
+        <Card title="Temp aire (C)" colors={colors}>
+          {fmt(displayData?.temp_aire_c)}
+        </Card>
+        <Card title="Temp piel (C)" colors={colors}>
+          {fmt(displayData?.temp_piel_c)}
+        </Card>
+        <Card title="Humedad (%)" colors={colors}>
+          {fmt(displayData?.humedad)}
+        </Card>
+        <Card title="Peso (g)" colors={colors}>
+          {fmt(displayData?.peso_g)}
+        </Card>
       </div>
 
       {/* Controles remotos - Solo visible si hay conexión BLE */}
@@ -766,7 +628,7 @@ export default function LiveDataPage() {
 
       {/* Sección Dashboards - Gráficas */}
       <div className="mt-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h2 className="text-2xl font-bold" style={{ color: colors.text }}>
             Dashboards
           </h2>
@@ -783,12 +645,12 @@ export default function LiveDataPage() {
         {/* Gráficas */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Temperatura de Piel */}
-          <div className="card p-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <div className="card p-4 md:p-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             <div className="mb-4">
-              <h3 className="text-xl font-semibold" style={{ color: colors.text }}>
+              <h3 className="text-lg md:text-xl font-semibold" style={{ color: colors.text }}>
                 Temperatura de Piel
               </h3>
-              <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+              <p className="text-xs md:text-sm mt-1" style={{ color: colors.textSecondary }}>
                 Evolución temporal de la temperatura corporal
               </p>
             </div>
@@ -803,12 +665,12 @@ export default function LiveDataPage() {
           </div>
 
           {/* Temperatura Ambiente */}
-          <div className="card p-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <div className="card p-4 md:p-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             <div className="mb-4">
-              <h3 className="text-xl font-semibold" style={{ color: colors.text }}>
+              <h3 className="text-lg md:text-xl font-semibold" style={{ color: colors.text }}>
                 Temperatura Ambiente
               </h3>
-              <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+              <p className="text-xs md:text-sm mt-1" style={{ color: colors.textSecondary }}>
                 Evolución temporal de la temperatura del habitáculo
               </p>
             </div>
@@ -823,12 +685,12 @@ export default function LiveDataPage() {
           </div>
 
           {/* Humedad */}
-          <div className="card p-6 lg:col-span-2" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+          <div className="card p-4 md:p-6 lg:col-span-2" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
             <div className="mb-4">
-              <h3 className="text-xl font-semibold" style={{ color: colors.text }}>
+              <h3 className="text-lg md:text-xl font-semibold" style={{ color: colors.text }}>
                 Humedad Relativa
               </h3>
-              <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
+              <p className="text-xs md:text-sm mt-1" style={{ color: colors.textSecondary }}>
                 Evolución temporal de la humedad del ambiente
               </p>
             </div>
@@ -842,6 +704,21 @@ export default function LiveDataPage() {
             />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Tarjeta sencilla (original)
+function Card(props: { title: string; children: React.ReactNode; colors: any }) {
+  const { title, children, colors } = props;
+  return (
+    <div className="card p-4" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+      <div className="text-sm mb-2" style={{ color: colors.textSecondary }}>
+        {title}
+      </div>
+      <div className="text-2xl font-semibold" style={{ color: colors.text }}>
+        {children}
       </div>
     </div>
   );
