@@ -32,6 +32,11 @@
 #include <HardwareSerial.h>
 #include <DFRobotDFPlayerMini.h>
 
+// ====== COMUNICACIÓN ESP-NOW ======
+#include <WiFi.h>
+#include <esp_now.h>
+
+
 // =========================
 // I2C / TCA9548A
 #define I2C_SDA   1
@@ -111,6 +116,11 @@ volatile bool gOkSHT41_A = false;
 volatile bool gOkSHT41_B = false;
 volatile bool gOkSHT31   = false;
 volatile bool gOkNTC     = false;
+
+// ===== ESPNOW: postura desde ESP32-CAM =====
+volatile bool gPostureDownNow = false;   // true si la postura detectada es "hacia abajo"
+String gPostureMsg = "";                 // último mensaje recibido (para debug/telemetría)
+
 
 // ===== Watchdog de lecturas de sensores (solo ese bloque) =====
 const unsigned long SENSOR_WD_MS = 3000;
@@ -230,6 +240,13 @@ volatile bool gReqAlarm_FS = false;  // Falla sensor
 volatile bool gReqAlarm_FP = false;  // Falla programa
 volatile bool gReqAlarm_PI = false;  // Postura incorrecta
 
+// ===== ESTADO ACTUAL DE ALARMAS (para BLE) =====
+bool gAlarm_ST = false;  // Sobretemperatura activa
+bool gAlarm_FF = false;  // Falla flujo activa
+bool gAlarm_FS = false;  // Falla sensor activa
+bool gAlarm_FP = false;  // Falla programa activa
+bool gAlarm_PI = false;  // Postura incorrecta activa
+
 // =========================
 // Prototipos
 static bool readSHT41_on(Adafruit_SHT4x& dev, uint8_t ch, float &tC, float &rh);
@@ -247,6 +264,9 @@ static inline void setHumDutyPct(float pct);
 static inline float humDiscretePWM(float err);
 void updateAlarms(float t_air_now, float t_skin_now, float rh_now);
 void handleBleAlarmCommand(const String& raw);
+void onEspNowRecv(const esp_now_recv_info *info,
+                  const uint8_t *incomingData,
+                  int len);
 
 
 // === BLE ===
@@ -590,7 +610,19 @@ String buildBleStatus(){
     case LM_PBM:       line5 += "PBM"; break;
   }
 
-  return line1 + line2 + line3 + line4 + line5;
+  // ===== Línea de ALARMAS en el status base =====
+  String line6 = "\nALR ST:";
+  line6 += (gAlarm_ST ? "1" : "0");
+  line6 += " FF:";
+  line6 += (gAlarm_FF ? "1" : "0");
+  line6 += " FS:";
+  line6 += (gAlarm_FS ? "1" : "0");
+  line6 += " FP:";
+  line6 += (gAlarm_FP ? "1" : "0");
+  line6 += " PI:";
+  line6 += (gAlarm_PI ? "1" : "0");
+
+  return line1 + line2 + line3 + line4 + line5 + line6;
 }
 
 // ====== AÑADIR: BLE con peso agregado ======
@@ -609,6 +641,40 @@ void bleSendStatus(){
   pTxCharacteristic->setValue((uint8_t*)s.c_str(), s.length());
   pTxCharacteristic->notify();
 }
+
+// Callback ESPNOW: recibe datos de la ESP32-CAM
+// Callback ESPNOW: recibe datos de la ESP32-CAM
+void onEspNowRecv(const esp_now_recv_info *info,
+                  const uint8_t *incomingData,
+                  int len) {
+  // Si no necesitas la info (MAC, RSSI, etc.), evita warnings:
+  (void)info;
+
+  String msg;
+  msg.reserve(len);
+  for (int i = 0; i < len; i++) {
+    msg += (char)incomingData[i];
+  }
+
+  // Guarda e imprime exactamente lo recibido
+  gPostureMsg = msg;
+  Serial.print("[ESPNOW RX] ");
+  Serial.println(msg);
+
+  // Normalizamos a mayúsculas para comparar
+  String upper = msg;
+  upper.toUpperCase();
+
+  // Detectar postura hacia abajo (ajusta las palabras a tu ESP32-CAM)
+  if (upper.indexOf("DOWN")  >= 0 ||
+      upper.indexOf("ABAJO") >= 0 ||
+      upper.indexOf("PRONO") >= 0) {
+    gPostureDownNow = true;
+  } else {
+    gPostureDownNow = false;
+  }
+}
+
 
 // =========================
 // OLEDs
@@ -903,9 +969,9 @@ static bool dfReady = false;
 
 
 // Ajusta si necesitas otros pines UART2
-static const int DF_RX = 18;        // ESP32-S3 RX ← DF TX
-static const int DF_TX = 17;        // ESP32-S3 TX → DF RX
-static const uint8_t DF_DEFAULT_VOL = 25; // 0..30
+static const int DF_RX = 17;        // ESP32-S3 RX ← DF TX
+static const int DF_TX = 16;        // ESP32-S3 TX → DF RX
+static const uint8_t DF_DEFAULT_VOL = 30; // 0..30
 
 // ====== AÑADIR: Audio volumen por ble
 uint8_t gDfVolume = DF_DEFAULT_VOL;   // 0..30
@@ -948,6 +1014,16 @@ bool dfPlayIdx(uint16_t idx) {
 void setup(){
   Serial.begin(115200);
   delay(100);
+
+    // ===== ESPNOW (receptor de ESP32-CAM) =====
+  WiFi.mode(WIFI_STA);   // obligatorio para usar ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("[ESPNOW] Error al inicializar ESP-NOW");
+  } else {
+    esp_now_register_recv_cb(onEspNowRecv);
+    Serial.println("[ESPNOW] Receptor listo");
+  }
+
 
   for (int i=0;i<F;i++) for(int j=0;j<C;j++){ keyPrev[i][j]=keyNow[i][j]=1; keyLastEdgeMs[i][j]=0; }
 
@@ -1262,7 +1338,13 @@ void updateAlarms(float t_air_now, float t_skin_now, float rh_now) {
 
   bool wdFail = gWatchdogTrip;
 
-  bool postureBad = (digitalRead(POSTURE_IN_PIN) == HIGH);
+  bool postureBadPin  = (digitalRead(POSTURE_IN_PIN) == HIGH);
+  // postura incorrecta si:
+  //   - el pin físico indica mala postura
+  //   - o la ESP32-CAM (ESP-NOW) detectó "hacia abajo"
+  bool postureBad = postureBadPin || gPostureDownNow;
+
+
 
   // ===== OR con los triggers manuales =====
   overtemp    = overtemp    || manST;
@@ -1271,6 +1353,12 @@ void updateAlarms(float t_air_now, float t_skin_now, float rh_now) {
   wdFail      = wdFail      || manFP;
   postureBad  = postureBad  || manPI;
 
+    // ===== PONER ESTADOS GLOBALES PARA TELEMETRÍA BLE =====
+  gAlarm_ST = overtemp;
+  gAlarm_FF = flowFail;
+  gAlarm_FS = anySensorFail;
+  gAlarm_FP = wdFail;
+  gAlarm_PI = postureBad;
 
   // LEDs (original)
   setLed(LED_OVERTEMP_PIN,   overtemp);
