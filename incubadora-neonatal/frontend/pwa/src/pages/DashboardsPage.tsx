@@ -5,19 +5,25 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useBluetooth } from "../contexts/BluetoothContext";
 
 function avg(xs: (number | null | undefined)[]) {
-  const v = xs.filter((x): x is number => typeof x === "number" && !Number.isNaN(x));
+  const v = xs.filter((x): x is number => 
+    typeof x === "number" && !Number.isNaN(x) && isFinite(x) && x !== null
+  );
   if (!v.length) return null;
   return v.reduce((a, b) => a + b, 0) / v.length;
 }
 
 function min(xs: (number | null | undefined)[]) {
-  const v = xs.filter((x): x is number => typeof x === "number" && !Number.isNaN(x));
+  const v = xs.filter((x): x is number => 
+    typeof x === "number" && !Number.isNaN(x) && isFinite(x) && x !== null
+  );
   if (!v.length) return null;
   return Math.min(...v);
 }
 
 function max(xs: (number | null | undefined)[]) {
-  const v = xs.filter((x): x is number => typeof x === "number" && !Number.isNaN(x));
+  const v = xs.filter((x): x is number => 
+    typeof x === "number" && !Number.isNaN(x) && isFinite(x) && x !== null
+  );
   if (!v.length) return null;
   return Math.max(...v);
 }
@@ -128,17 +134,81 @@ export default function DashboardsPage() {
     return () => clearInterval(interval);
   }, [fetchBackendData]);
 
-  const kAire = useMemo(() => avg(allRows.map((r) => r.temp_aire_c)), [allRows]);
-  const kPiel = useMemo(() => avg(allRows.map((r) => r.temp_piel_c)), [allRows]);
-  const kHum = useMemo(() => avg(allRows.map((r) => r.humedad)), [allRows]);
-  const kPeso = useMemo(() => avg(allRows.map((r) => r.peso_g)), [allRows]);
+  // Calcular estadísticas usando exactamente los mismos datos que las gráficas (allRows)
+  // Filtrar solo los valores válidos y finitos
+  const kAire = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.temp_aire_c)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    if (validValues.length === 0) return null;
+    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
+  }, [allRows]);
 
-  const minAire = useMemo(() => min(allRows.map((r) => r.temp_aire_c)), [allRows]);
-  const maxAire = useMemo(() => max(allRows.map((r) => r.temp_aire_c)), [allRows]);
-  const minPiel = useMemo(() => min(allRows.map((r) => r.temp_piel_c)), [allRows]);
-  const maxPiel = useMemo(() => max(allRows.map((r) => r.temp_piel_c)), [allRows]);
-  const minHum = useMemo(() => min(allRows.map((r) => r.humedad)), [allRows]);
-  const maxHum = useMemo(() => max(allRows.map((r) => r.humedad)), [allRows]);
+  const kPiel = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.temp_piel_c)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    if (validValues.length === 0) return null;
+    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
+  }, [allRows]);
+
+  const kHum = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.humedad)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    if (validValues.length === 0) return null;
+    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
+  }, [allRows]);
+
+  const kPeso = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.peso_g)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    if (validValues.length === 0) return null;
+    return validValues.reduce((a, b) => a + b, 0) / validValues.length;
+  }, [allRows]);
+
+  const minAire = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.temp_aire_c)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    return validValues.length > 0 ? Math.min(...validValues) : null;
+  }, [allRows]);
+
+  const maxAire = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.temp_aire_c)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    return validValues.length > 0 ? Math.max(...validValues) : null;
+  }, [allRows]);
+
+  const minPiel = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.temp_piel_c)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    return validValues.length > 0 ? Math.min(...validValues) : null;
+  }, [allRows]);
+
+  const maxPiel = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.temp_piel_c)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    return validValues.length > 0 ? Math.max(...validValues) : null;
+  }, [allRows]);
+
+  const minHum = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.humedad)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    return validValues.length > 0 ? Math.min(...validValues) : null;
+  }, [allRows]);
+
+  const maxHum = useMemo(() => {
+    const validValues = allRows
+      .map((r) => r.humedad)
+      .filter((v): v is number => typeof v === "number" && !Number.isNaN(v) && isFinite(v) && v !== null);
+    return validValues.length > 0 ? Math.max(...validValues) : null;
+  }, [allRows]);
 
   const StatCard = ({
     title,

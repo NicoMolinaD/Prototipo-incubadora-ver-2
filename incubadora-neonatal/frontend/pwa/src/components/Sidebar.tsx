@@ -73,10 +73,18 @@ export default function Sidebar({ activePath, isAdmin, isOpen, toggle }: Sidebar
           src="/logo-marsupia.png"
           alt="Marsupia - Neonatal Incubator"
           className="w-20 h-20 object-contain mb-2"
+          style={{ maxWidth: "80px", maxHeight: "80px" }}
           onError={(e) => {
-            // Fallback si la imagen no existe
+            // Fallback si la imagen no existe - mostrar texto alternativo
             const target = e.target as HTMLImageElement;
-            target.style.display = "none";
+            const parent = target.parentElement;
+            if (parent) {
+              target.style.display = "none";
+              const fallback = document.createElement("div");
+              fallback.className = "w-20 h-20 flex items-center justify-center mb-2 text-slate-400 text-4xl";
+              fallback.textContent = "🦘";
+              parent.insertBefore(fallback, target.nextSibling);
+            }
           }}
         />
         <p className="text-xs text-slate-400 text-center font-medium">
