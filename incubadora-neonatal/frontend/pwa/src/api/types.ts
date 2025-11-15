@@ -16,6 +16,7 @@ export type MeasurementOut = {
   temp_piel_c?: number | null;
   humedad?: number | null;
   peso_g?: number | null;
+  alerts?: number | null;
 };
 
 export interface SeriesPoint {

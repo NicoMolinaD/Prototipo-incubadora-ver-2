@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect, ReactNode } from "react";
 import { ingest } from "../api/client";
-import type { MeasurementOut } from "../api/types";
+import type { MeasurementOut, SeriesPoint } from "../api/types";
 
 // Alias mínimo para UUID de servicios BLE
 type BtServiceUUID = number | string;
@@ -98,14 +98,26 @@ function parseBleLine(text: string): ParsedBleData {
     out.light_mode = mLight[1].toUpperCase();
   }
 
+  // Alerts: número entero (máscara de bits)
+  const mAlerts = t.match(/\bAlerts?\s*:\s*(\d+)/i);
+  if (mAlerts) {
+    const v = parseInt(mAlerts[1], 10);
+    if (!Number.isNaN(v)) {
+      out.alerts = v;
+    }
+  }
+
   return out;
 }
 
 interface BluetoothContextType {
   isConnected: boolean;
   deviceName: string | null;
+  deviceId: string | null;
   lastMessage: string;
   latestData: MeasurementOut | null;
+  // Historial de datos para gráficas (últimos 500 puntos)
+  dataHistory: SeriesPoint[];
   connect: () => Promise<void>;
   disconnect: () => void;
   sendCommand: (msg: string) => Promise<void>;
@@ -127,8 +139,11 @@ const BluetoothContext = createContext<BluetoothContextType | undefined>(undefin
 export function BluetoothProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [deviceName, setDeviceName] = useState<string | null>(null);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState("");
   const [latestData, setLatestData] = useState<MeasurementOut | null>(null);
+  // Historial de datos para gráficas (máximo 500 puntos)
+  const [dataHistory, setDataHistory] = useState<SeriesPoint[]>([]);
   
   // Estado de setpoints
   const [spAir, setSpAir] = useState<number>(35.0);
@@ -172,22 +187,38 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
     const hasData = Object.keys(partial).length > 1 || partial.temp_aire_c !== undefined;
     if (!hasData) return;
 
-    // 3) Actualizar UI con datos nuevos
+    // 3) Crear punto de datos completo para el historial
+    const currentDeviceId = deviceRef.current?.id ?? deviceId ?? "esp32_demo";
+    const dataPoint: SeriesPoint = {
+      ts: partial.ts || new Date().toISOString(),
+      device_id: currentDeviceId,
+      temp_aire_c: partial.temp_aire_c ?? null,
+      temp_piel_c: partial.temp_piel_c ?? null,
+      humedad: partial.humedad ?? null,
+      peso_g: partial.peso_g ?? null,
+      alerts: partial.alerts ?? null,
+    };
+
+    // 4) Actualizar historial (mantener máximo 500 puntos)
+    setDataHistory((prev) => {
+      const updated = [...prev, dataPoint];
+      return updated.slice(-500); // Mantener solo los últimos 500 puntos
+    });
+
+    // 5) Actualizar UI con datos nuevos
     setLatestData((prev) => ({ ...(prev ?? {}), ...partial } as MeasurementOut));
 
-      // 4) Enviar al backend
-      // Usar el ID del dispositivo Bluetooth o un ID por defecto
-      const deviceId = deviceRef.current?.id ?? "esp32_demo";
-      const payload = {
-        device_id: deviceId,
-        ...partial,
-      };
+    // 6) Enviar al backend
+    const payload = {
+      device_id: currentDeviceId,
+      ...partial,
+    };
 
-      console.log("[BluetoothContext] Sending data to backend with device_id:", deviceId);
-      ingest(payload as any).catch((err) => {
-        console.error("[BluetoothContext] ingest failed", err);
-      });
-  }, []);
+    console.log("[BluetoothContext] Sending data to backend with device_id:", currentDeviceId);
+    ingest(payload as any).catch((err) => {
+      console.error("[BluetoothContext] ingest failed", err);
+    });
+  }, [deviceId]);
 
   const connect = useCallback(async () => {
     try {
@@ -224,16 +255,20 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
       deviceRef.current = device;
       txRef.current = txChar;
       rxRef.current = rxChar;
-      setDeviceName(device.name || device.id);
+      const currentDeviceId = device.id || `esp32_${Date.now()}`;
+      setDeviceId(currentDeviceId);
+      setDeviceName(device.name || currentDeviceId);
       setIsConnected(true);
 
       // Manejar desconexión automática
       device.addEventListener("gattserverdisconnected", () => {
         setIsConnected(false);
         setDeviceName(null);
+        setDeviceId(null);
         deviceRef.current = null;
         txRef.current = null;
         rxRef.current = null;
+        // No limpiar el historial para que las gráficas mantengan los datos
       });
     } catch (e: any) {
       console.error("Bluetooth connection error:", e);
@@ -254,9 +289,11 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnected(false);
       setDeviceName(null);
+      setDeviceId(null);
       deviceRef.current = null;
       txRef.current = null;
       rxRef.current = null;
+      // No limpiar el historial para que las gráficas mantengan los datos
     }
   }, []);
 
@@ -282,8 +319,10 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
       value={{
         isConnected,
         deviceName,
+        deviceId,
         lastMessage,
         latestData,
+        dataHistory,
         connect,
         disconnect,
         sendCommand,

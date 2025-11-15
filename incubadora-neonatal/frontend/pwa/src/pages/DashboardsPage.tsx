@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { getSeries, getDevices, type SeriesPoint } from "../api/client";
 import TimeSeriesChart from "../components/TimeSeriesChart";
 import { useTheme } from "../contexts/ThemeContext";
+import { useBluetooth } from "../contexts/BluetoothContext";
 
 function avg(xs: (number | null | undefined)[]) {
   const v = xs.filter((x): x is number => typeof x === "number" && !Number.isNaN(x));
@@ -23,97 +24,121 @@ function max(xs: (number | null | undefined)[]) {
 
 export default function DashboardsPage() {
   const { colors } = useTheme();
-  const [rows, setRows] = useState<SeriesPoint[]>([]);
+  const { 
+    isConnected: bleConnected, 
+    dataHistory: bleDataHistory,
+    latestData: bleLatestData,
+    deviceName: bleDeviceName 
+  } = useBluetooth();
+  
+  const [backendRows, setBackendRows] = useState<SeriesPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [hasDevices, setHasDevices] = useState<boolean>(true);
   const [debugInfo, setDebugInfo] = useState<string>("");
 
-  const fetchData = useCallback(async () => {
+  // Combinar datos de Bluetooth y backend
+  const allRows = useMemo(() => {
+    // Si hay datos de Bluetooth, combinarlos con los del backend
+    if (bleDataHistory.length > 0) {
+      // Combinar y eliminar duplicados por timestamp
+      const combined = [...backendRows, ...bleDataHistory];
+      const unique = combined.reduce((acc, current) => {
+        const existing = acc.find(item => 
+          item.ts === current.ts && item.device_id === current.device_id
+        );
+        if (!existing) {
+          acc.push(current);
+        }
+        return acc;
+      }, [] as SeriesPoint[]);
+      
+      // Ordenar por timestamp
+      return unique.sort((a, b) => {
+        const dateA = new Date(a.ts).getTime();
+        const dateB = new Date(b.ts).getTime();
+        return dateA - dateB;
+      });
+    }
+    return backendRows;
+  }, [backendRows, bleDataHistory]);
+
+  const fetchBackendData = useCallback(async () => {
     try {
       setError(null);
-      setLoading(true);
       
-      // Primero verificar si hay dispositivos vinculados
+      // Verificar dispositivos vinculados
       const devices = await getDevices();
       console.log("[Dashboards] Dispositivos obtenidos:", devices);
       
-      if (devices.length === 0) {
+      if (devices.length === 0 && !bleConnected) {
         setHasDevices(false);
-        setRows([]);
-        setLoading(false);
+        setBackendRows([]);
         setDebugInfo("No hay dispositivos vinculados");
         return;
       }
       
       setHasDevices(true);
-      setDebugInfo(`${devices.length} dispositivo(s) vinculado(s)`);
+      const deviceCount = devices.length + (bleConnected ? 1 : 0);
+      setDebugInfo(`${deviceCount} dispositivo(s) - ${bleConnected ? 'BLE conectado' : 'Solo backend'}`);
       
-      // Obtener datos de todos los dispositivos vinculados
-      // Reducir el límite para evitar timeouts (500 puntos son suficientes para gráficas)
-      // El backend ya devuelve los datos en orden ascendente (más antiguo primero)
+      // Obtener datos del backend (últimas 6 horas, máximo 500 puntos)
       const data = await getSeries({ since_minutes: 6 * 60, limit: 500 });
-      console.log("[Dashboards] Datos obtenidos:", data.length, "registros");
-      console.log("[Dashboards] Primeros 3 registros:", data.slice(0, 3));
+      console.log("[Dashboards] Datos del backend:", data.length, "registros");
       
-      // Los datos ya vienen en orden ascendente del backend, no necesitamos reverse
-      // Solo asegurémonos de que estén ordenados correctamente
       const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.ts).getTime();
         const dateB = new Date(b.ts).getTime();
-        return dateA - dateB; // Ascendente (más antiguo primero)
+        return dateA - dateB;
       });
       
-      setRows(sortedData);
+      setBackendRows(sortedData);
       setLastUpdate(new Date());
       
-      if (sortedData.length === 0) {
-        setError("No hay datos disponibles. Asegúrate de que tus dispositivos estén enviando mediciones.");
+      if (sortedData.length === 0 && bleDataHistory.length === 0) {
+        setError("No hay datos disponibles. Conecta un dispositivo Bluetooth o espera a que se envíen datos.");
         setDebugInfo("No hay datos en los últimos 6 horas");
       } else {
-        setDebugInfo(`${sortedData.length} registros cargados`);
+        const totalPoints = sortedData.length + bleDataHistory.length;
+        setDebugInfo(`${totalPoints} puntos de datos (${sortedData.length} backend + ${bleDataHistory.length} BLE)`);
       }
     } catch (err: any) {
       console.error("[Dashboards] Error fetching data:", err);
       const errorMessage = err.message || "Error al cargar los datos. Por favor, intenta de nuevo.";
       
-      // Si es un error de autenticación, no establecer error local ya que se redirigirá
       if (errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
-        // El handleResponse ya se encarga de redirigir, solo limpiamos el estado
         setLoading(false);
         return;
       }
       
-      // Para otros errores, mostrar el mensaje pero mantener los datos anteriores si existen
       setError(errorMessage);
-      // No limpiar rows si ya tenemos datos, para que las gráficas sigan funcionando
       setDebugInfo(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [bleConnected, bleDataHistory.length]);
 
   useEffect(() => {
-    fetchData();
-    // Actualizar cada 10 segundos para tiempo real (reducido para evitar sobrecarga)
+    fetchBackendData();
+    // Actualizar datos del backend cada 5 segundos
     const interval = setInterval(() => {
-      fetchData();
-    }, 10000);
+      fetchBackendData();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchBackendData]);
 
-  const kAire = useMemo(() => avg(rows.map((r) => r.temp_aire_c)), [rows]);
-  const kPiel = useMemo(() => avg(rows.map((r) => r.temp_piel_c)), [rows]);
-  const kHum = useMemo(() => avg(rows.map((r) => r.humedad)), [rows]);
-  const kPeso = useMemo(() => avg(rows.map((r) => r.peso_g)), [rows]);
+  const kAire = useMemo(() => avg(allRows.map((r) => r.temp_aire_c)), [allRows]);
+  const kPiel = useMemo(() => avg(allRows.map((r) => r.temp_piel_c)), [allRows]);
+  const kHum = useMemo(() => avg(allRows.map((r) => r.humedad)), [allRows]);
+  const kPeso = useMemo(() => avg(allRows.map((r) => r.peso_g)), [allRows]);
 
-  const minAire = useMemo(() => min(rows.map((r) => r.temp_aire_c)), [rows]);
-  const maxAire = useMemo(() => max(rows.map((r) => r.temp_aire_c)), [rows]);
-  const minPiel = useMemo(() => min(rows.map((r) => r.temp_piel_c)), [rows]);
-  const maxPiel = useMemo(() => max(rows.map((r) => r.temp_piel_c)), [rows]);
-  const minHum = useMemo(() => min(rows.map((r) => r.humedad)), [rows]);
-  const maxHum = useMemo(() => max(rows.map((r) => r.humedad)), [rows]);
+  const minAire = useMemo(() => min(allRows.map((r) => r.temp_aire_c)), [allRows]);
+  const maxAire = useMemo(() => max(allRows.map((r) => r.temp_aire_c)), [allRows]);
+  const minPiel = useMemo(() => min(allRows.map((r) => r.temp_piel_c)), [allRows]);
+  const maxPiel = useMemo(() => max(allRows.map((r) => r.temp_piel_c)), [allRows]);
+  const minHum = useMemo(() => min(allRows.map((r) => r.humedad)), [allRows]);
+  const maxHum = useMemo(() => max(allRows.map((r) => r.humedad)), [allRows]);
 
   const StatCard = ({
     title,
@@ -153,8 +178,8 @@ export default function DashboardsPage() {
     </div>
   );
 
-  // Mostrar mensaje si no hay dispositivos vinculados
-  if (!hasDevices) {
+  // Mostrar mensaje si no hay dispositivos
+  if (!hasDevices && !bleConnected) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <div>
@@ -179,7 +204,7 @@ export default function DashboardsPage() {
   }
 
   // Mostrar mensaje de error o sin datos
-  if (error || (rows.length === 0 && !loading)) {
+  if (error && allRows.length === 0 && !loading) {
     return (
       <div className="space-y-6 p-4 md:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -197,7 +222,7 @@ export default function DashboardsPage() {
             )}
           </div>
           <button
-            onClick={fetchData}
+            onClick={fetchBackendData}
             disabled={loading}
             className="btn px-4 py-2 flex items-center gap-2"
             style={{
@@ -214,10 +239,10 @@ export default function DashboardsPage() {
         <div className="card p-8 text-center" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
           <div className="text-6xl mb-4">📈</div>
           <h2 className="text-xl font-semibold mb-2" style={{ color: colors.text }}>
-            {error ? "Error al cargar datos" : "No hay datos disponibles"}
+            Error al cargar datos
           </h2>
           <p className="text-sm mb-4" style={{ color: colors.textSecondary }}>
-            {error || "Asegúrate de que tus dispositivos estén enviando mediciones."}
+            {error}
           </p>
           {debugInfo && (
             <p className="text-xs mb-4 font-mono" style={{ color: colors.textSecondary }}>
@@ -225,7 +250,7 @@ export default function DashboardsPage() {
             </p>
           )}
           <button
-            onClick={fetchData}
+            onClick={fetchBackendData}
             className="px-4 py-2 rounded-lg font-medium"
             style={{
               backgroundColor: colors.primary,
@@ -249,15 +274,20 @@ export default function DashboardsPage() {
           </h1>
           <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
             Monitoreo en tiempo real • Última actualización: {lastUpdate.toLocaleTimeString()}
+            {bleConnected && (
+              <span className="ml-2 px-2 py-1 rounded text-xs" style={{ backgroundColor: "#10b981", color: "white" }}>
+                🔵 BLE: {bleDeviceName}
+              </span>
+            )}
           </p>
           {debugInfo && (
             <p className="text-xs mt-1 font-mono" style={{ color: colors.textSecondary }}>
-              {debugInfo}
+              Debug: {debugInfo}
             </p>
           )}
         </div>
         <button
-          onClick={fetchData}
+          onClick={fetchBackendData}
           disabled={loading}
           className="btn px-4 py-2 flex items-center gap-2"
           style={{
@@ -322,7 +352,7 @@ export default function DashboardsPage() {
             </p>
           </div>
           <TimeSeriesChart
-            data={rows}
+            data={allRows}
             dataKey="temp_piel_c"
             name="Temperatura Piel"
             unit="°C"
@@ -342,7 +372,7 @@ export default function DashboardsPage() {
             </p>
           </div>
           <TimeSeriesChart
-            data={rows}
+            data={allRows}
             dataKey="temp_aire_c"
             name="Temperatura Ambiente"
             unit="°C"
@@ -362,7 +392,7 @@ export default function DashboardsPage() {
             </p>
           </div>
           <TimeSeriesChart
-            data={rows}
+            data={allRows}
             dataKey="humedad"
             name="Humedad"
             unit="%"
@@ -379,7 +409,7 @@ export default function DashboardsPage() {
             Últimas Muestras
           </h2>
           <p className="text-sm mt-1" style={{ color: colors.textSecondary }}>
-            Registro detallado de las últimas mediciones ({rows.length} registros)
+            Registro detallado de las últimas mediciones ({allRows.length} registros)
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -407,7 +437,7 @@ export default function DashboardsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.slice(-20).reverse().map((r, i) => (
+              {allRows.slice(-20).reverse().map((r, i) => (
                 <tr
                   key={i}
                   style={{

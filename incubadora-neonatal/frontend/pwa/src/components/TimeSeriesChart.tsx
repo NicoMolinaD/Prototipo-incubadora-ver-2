@@ -56,13 +56,20 @@ export default function TimeSeriesChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+      <LineChart 
+        data={chartData} 
+        margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+        key={`chart-${chartData.length}`} // Forzar re-render cuando cambien los datos
+      >
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis
           dataKey="time"
           stroke="#64748b"
           style={{ fontSize: "12px" }}
           interval="preserveStartEnd"
+          angle={-45}
+          textAnchor="end"
+          height={60}
         />
         <YAxis
           stroke="#64748b"
@@ -87,8 +94,9 @@ export default function TimeSeriesChart({
           stroke={color}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4 }}
-          animationDuration={300}
+          activeDot={{ r: 6, fill: color }}
+          animationDuration={200}
+          isAnimationActive={true}
         />
       </LineChart>
     </ResponsiveContainer>
