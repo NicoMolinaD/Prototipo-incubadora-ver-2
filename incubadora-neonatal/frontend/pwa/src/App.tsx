@@ -12,7 +12,6 @@ import RegisterPage from "./pages/RegisterPage";
 import CreateFirstAdminPage from "./pages/CreateFirstAdminPage";
 import LiveDataPage from "./pages/LiveDataPage";
 import DataManagementPage from "./pages/DataManagementPage";
-import DashboardsPage from "./pages/DashboardsPage";
 import DevicesPage from "./pages/DevicesPage";
 import AlertsPage from "./pages/AlertsPage";
 import ModelsPage from "./pages/ModelsPage";
@@ -58,14 +57,6 @@ function AppRoutes() {
                 <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-6xl">
                   <Routes>
                     <Route path="/" element={<Navigate to="/live" replace />} />
-                    <Route
-                      path="/dashboards"
-                      element={
-                        <ProtectedRoute>
-                          <DashboardsPage />
-                        </ProtectedRoute>
-                      }
-                    />
                     <Route
                       path="/live"
                       element={

@@ -8,7 +8,6 @@ interface SidebarItem {
 }
 
 const allItems: SidebarItem[] = [
-  { to: "/dashboards", label: "Dashboards", icon: "📊" },
   { to: "/live", label: "Live Data", icon: "📈" },
   { to: "/devices", label: "Dispositivos", icon: "🔌" },
   { to: "/alerts", label: "Alertas", icon: "🔔" },
