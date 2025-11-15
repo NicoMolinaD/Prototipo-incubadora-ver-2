@@ -121,10 +121,10 @@ export default function DashboardsPage() {
 
   useEffect(() => {
     fetchBackendData();
-    // Actualizar datos del backend cada 5 segundos
+    // Actualizar datos del backend cada 1 segundo para tiempo real
     const interval = setInterval(() => {
       fetchBackendData();
-    }, 5000);
+    }, 1000);
     return () => clearInterval(interval);
   }, [fetchBackendData]);
 

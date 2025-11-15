@@ -13,6 +13,12 @@ interface ParsedBleData extends Partial<MeasurementOut> {
   current_mode?: string;
   adjust_target?: string;
   light_mode?: string;
+  // Alertas individuales desde el formato ALR ST:1 FF:0 FS:0 FP:0 PI:0
+  alarm_ST?: boolean;  // Sobretemperatura
+  alarm_FF?: boolean;  // Falla flujo
+  alarm_FS?: boolean;  // Falla sensor
+  alarm_FP?: boolean;  // Falla programa
+  alarm_PI?: boolean;  // Postura incorrecta
 }
 
 function parseBleLine(text: string): ParsedBleData {
@@ -98,13 +104,33 @@ function parseBleLine(text: string): ParsedBleData {
     out.light_mode = mLight[1].toUpperCase();
   }
 
-  // Alerts: número entero (máscara de bits)
+  // Alerts: número entero (máscara de bits) - formato antiguo
   const mAlerts = t.match(/\bAlerts?\s*:\s*(\d+)/i);
   if (mAlerts) {
     const v = parseInt(mAlerts[1], 10);
     if (!Number.isNaN(v)) {
       out.alerts = v;
     }
+  }
+
+  // ALR ST:1 FF:0 FS:0 FP:0 PI:0 - formato nuevo del firmware
+  // El formato del firmware es: "\nALR ST:1 FF:0 FS:0 FP:0 PI:0"
+  const mAlr = t.match(/ALR\s+ST\s*:\s*(\d+)\s+FF\s*:\s*(\d+)\s+FS\s*:\s*(\d+)\s+FP\s*:\s*(\d+)\s+PI\s*:\s*(\d+)/i);
+  if (mAlr) {
+    out.alarm_ST = mAlr[1] === "1";
+    out.alarm_FF = mAlr[2] === "1";
+    out.alarm_FS = mAlr[3] === "1";
+    out.alarm_FP = mAlr[4] === "1";
+    out.alarm_PI = mAlr[5] === "1";
+    
+    // Construir máscara de bits para compatibilidad
+    let mask = 0;
+    if (out.alarm_ST) mask |= 1;   // bit 0
+    if (out.alarm_FF) mask |= 2;   // bit 1
+    if (out.alarm_FS) mask |= 4;   // bit 2
+    if (out.alarm_FP) mask |= 8;   // bit 3
+    if (out.alarm_PI) mask |= 16;  // bit 4
+    out.alerts = mask;
   }
 
   return out;
@@ -118,6 +144,14 @@ interface BluetoothContextType {
   latestData: MeasurementOut | null;
   // Historial de datos para gráficas (últimos 500 puntos)
   dataHistory: SeriesPoint[];
+  // Estado actual de alertas desde Bluetooth
+  currentAlarms: {
+    ST: boolean;  // Sobretemperatura
+    FF: boolean;  // Falla flujo
+    FS: boolean;  // Falla sensor
+    FP: boolean;  // Falla programa
+    PI: boolean;  // Postura incorrecta
+  };
   connect: () => Promise<void>;
   disconnect: () => void;
   sendCommand: (msg: string) => Promise<void>;
@@ -144,6 +178,14 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
   const [latestData, setLatestData] = useState<MeasurementOut | null>(null);
   // Historial de datos para gráficas (máximo 500 puntos)
   const [dataHistory, setDataHistory] = useState<SeriesPoint[]>([]);
+  // Estado actual de alertas
+  const [currentAlarms, setCurrentAlarms] = useState({
+    ST: false,
+    FF: false,
+    FS: false,
+    FP: false,
+    PI: false,
+  });
   
   // Estado de setpoints
   const [spAir, setSpAir] = useState<number>(35.0);
@@ -181,6 +223,19 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
       };
       const mapped = lightMap[partial.light_mode] || partial.light_mode;
       setLightMode(mapped);
+    }
+
+    // Actualizar estado de alertas desde el mensaje BLE
+    if (partial.alarm_ST !== undefined || partial.alarm_FF !== undefined || 
+        partial.alarm_FS !== undefined || partial.alarm_FP !== undefined || 
+        partial.alarm_PI !== undefined) {
+      setCurrentAlarms(prev => ({
+        ST: partial.alarm_ST ?? prev.ST,
+        FF: partial.alarm_FF ?? prev.FF,
+        FS: partial.alarm_FS ?? prev.FS,
+        FP: partial.alarm_FP ?? prev.FP,
+        PI: partial.alarm_PI ?? prev.PI,
+      }));
     }
 
     // Si no hay datos útiles, no enviar al backend
@@ -323,6 +378,7 @@ export function BluetoothProvider({ children }: { children: ReactNode }) {
         lastMessage,
         latestData,
         dataHistory,
+        currentAlarms,
         connect,
         disconnect,
         sendCommand,

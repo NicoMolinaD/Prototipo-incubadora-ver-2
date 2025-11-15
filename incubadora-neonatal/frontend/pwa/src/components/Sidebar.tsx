@@ -30,7 +30,7 @@ export default function Sidebar({ activePath, isAdmin, isOpen, toggle }: Sidebar
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen w-64 bg-slate-900 text-slate-100 transform transition-transform duration-300 z-30 ${
+      className={`fixed top-0 left-0 h-screen w-64 bg-slate-900 text-slate-100 transform transition-transform duration-300 z-30 flex flex-col ${
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       }`}
     >
@@ -44,7 +44,7 @@ export default function Sidebar({ activePath, isAdmin, isOpen, toggle }: Sidebar
           ✕
         </button>
       </div>
-      <nav className="px-2 space-y-1">
+      <nav className="px-2 space-y-1 flex-1">
         {items.map((it) => {
           const active = activePath.startsWith(it.to);
           return (
@@ -67,6 +67,25 @@ export default function Sidebar({ activePath, isAdmin, isOpen, toggle }: Sidebar
           );
         })}
       </nav>
+      {/* Logo Marsupia en la parte inferior */}
+      <div className="px-4 py-4 border-t border-slate-700 flex flex-col items-center justify-center">
+        <img
+          src="/logo-marsupia.png"
+          alt="Marsupia - Neonatal Incubator"
+          className="w-20 h-20 object-contain mb-2"
+          onError={(e) => {
+            // Fallback si la imagen no existe
+            const target = e.target as HTMLImageElement;
+            target.style.display = "none";
+          }}
+        />
+        <p className="text-xs text-slate-400 text-center font-medium">
+          MARSUPIA
+        </p>
+        <p className="text-xs text-slate-500 text-center">
+          Neonatal Incubator
+        </p>
+      </div>
     </aside>
   );
 }

@@ -37,7 +37,26 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-500 to-blue-700 p-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-6 transition-all">
-        <h1 className="text-2xl font-semibold text-center mb-4">Iniciar sesión</h1>
+        {/* Logo Marsupia */}
+        <div className="flex flex-col items-center mb-6">
+          <img
+            src="/logo-marsupia.png"
+            alt="Marsupia - Neonatal Incubator"
+            className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 object-contain mb-4"
+            onError={(e) => {
+              // Fallback si la imagen no existe
+              const target = e.target as HTMLImageElement;
+              target.style.display = "none";
+            }}
+          />
+          <h1 className="text-2xl sm:text-3xl font-bold text-center mb-2" style={{ color: "#3b82f6" }}>
+            MARSUPIA
+          </h1>
+          <p className="text-sm sm:text-base text-center text-slate-600">
+            Neonatal Incubator
+          </p>
+        </div>
+        <h2 className="text-xl sm:text-2xl font-semibold text-center mb-4 text-slate-800">Iniciar sesión</h2>
         {success && (
           <div className="mb-4 text-green-600 text-sm text-center bg-green-50 border border-green-200 px-4 py-3 rounded">
             {success}
