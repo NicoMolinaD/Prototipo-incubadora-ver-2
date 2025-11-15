@@ -65,6 +65,32 @@ def login(
 def read_users_me(current_user: models.User = Depends(get_current_active_user)):
     return current_user
 
+@router.put("/me", response_model=schemas.UserOut)
+def update_users_me(
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """Permite al usuario actualizar su propia cuenta"""
+    if user_update.username and user_update.username != current_user.username:
+        existing = db.query(models.User).filter(models.User.username == user_update.username).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        current_user.username = user_update.username
+    
+    if user_update.email and user_update.email != current_user.email:
+        existing = db.query(models.User).filter(models.User.email == user_update.email).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already taken")
+        current_user.email = user_update.email
+    
+    if user_update.password:
+        current_user.hashed_password = get_password_hash(user_update.password)
+    
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
 @router.post("/create-first-admin", response_model=schemas.UserOut)
 def create_first_admin(
     user_data: schemas.UserCreate,

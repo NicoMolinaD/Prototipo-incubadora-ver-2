@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
+import { updateCurrentUser } from "../api/client";
 
 type Theme = "light" | "dark" | "blue" | "green" | "purple";
 
@@ -11,7 +12,11 @@ export default function SettingsPage() {
   const [retention, setRetention] = useState<number>(parseInt(localStorage.getItem("retention") || "30"));
   const [email, setEmail] = useState<string>(user?.email || "");
   const [username, setUsername] = useState<string>(user?.username || "");
+  const [password, setPassword] = useState<string>("");
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
 
   useEffect(() => {
     if (user) {
@@ -19,6 +24,55 @@ export default function SettingsPage() {
       setUsername(user.username);
     }
   }, [user]);
+
+  async function saveAccountSettings() {
+    if (!user) return;
+    
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    
+    try {
+      const updateData: { username?: string; email?: string; password?: string } = {};
+      
+      if (username !== user.username) {
+        updateData.username = username;
+      }
+      if (email !== user.email) {
+        updateData.email = email;
+      }
+      if (password && password.length > 0) {
+        if (password.length < 6) {
+          setError("La contraseña debe tener al menos 6 caracteres");
+          setSaving(false);
+          return;
+        }
+        updateData.password = password;
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        setError("No hay cambios para guardar");
+        setSaving(false);
+        return;
+      }
+      
+      const updatedUser = await updateCurrentUser(updateData);
+      
+      // Actualizar el usuario en el contexto (necesitamos refrescar)
+      setSuccess("Cuenta actualizada exitosamente");
+      setPassword(""); // Limpiar campo de contraseña
+      
+      // Recargar la página para actualizar el contexto de autenticación
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Error updating account:", err);
+      setError(err.message || "Error al actualizar la cuenta");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   function saveSettings() {
     localStorage.setItem("apiBase", apiBase);
@@ -47,10 +101,20 @@ export default function SettingsPage() {
       </div>
 
       {/* Configuración de Cuenta */}
-      <div className="card p-6">
+      <div className="card p-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
         <h2 className="text-xl font-semibold mb-4" style={{ color: colors.text }}>
           Información de Cuenta
         </h2>
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-3 rounded-lg bg-green-50 border border-green-200">
+            <p className="text-sm text-green-600">{success}</p>
+          </div>
+        )}
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
@@ -60,18 +124,16 @@ export default function SettingsPage() {
               type="text"
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-all"
               style={{
-                backgroundColor: colors.background,
+                backgroundColor: theme === "dark" ? "#1e293b" : "#ffffff",
                 borderColor: colors.border,
                 color: colors.text,
                 focusRingColor: colors.primary,
               }}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled
-              title="El nombre de usuario no se puede cambiar"
             />
             <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-              El nombre de usuario no se puede modificar
+              Puedes cambiar tu nombre de usuario
             </p>
           </div>
 
@@ -83,17 +145,36 @@ export default function SettingsPage() {
               type="email"
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-all"
               style={{
-                backgroundColor: colors.background,
+                backgroundColor: theme === "dark" ? "#1e293b" : "#ffffff",
                 borderColor: colors.border,
                 color: colors.text,
               }}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled
-              title="El correo electrónico no se puede cambiar desde aquí"
             />
             <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>
-              Contacta a un administrador para cambiar tu correo
+              Puedes actualizar tu correo electrónico
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2" style={{ color: colors.textSecondary }}>
+              Nueva Contraseña (opcional)
+            </label>
+            <input
+              type="password"
+              className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-all"
+              style={{
+                backgroundColor: theme === "dark" ? "#1e293b" : "#ffffff",
+                borderColor: colors.border,
+                color: colors.text,
+              }}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Deja vacío para no cambiar"
+            />
+            <p className="text-xs mt-1" style={{ color: colors.textSecondary }}>
+              Mínimo 6 caracteres. Solo completa si deseas cambiar tu contraseña.
             </p>
           </div>
 
@@ -104,6 +185,21 @@ export default function SettingsPage() {
               </span>
             </div>
           )}
+
+          <div className="pt-2">
+            <button
+              onClick={saveAccountSettings}
+              disabled={saving}
+              className="btn px-6 py-2 font-medium transition-all hover:shadow-lg disabled:opacity-50"
+              style={{
+                backgroundColor: colors.primary,
+                color: "white",
+                border: "none",
+              }}
+            >
+              {saving ? "Guardando..." : "Guardar Cambios de Cuenta"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -158,7 +254,7 @@ export default function SettingsPage() {
               type="text"
               className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-all"
               style={{
-                backgroundColor: colors.background,
+                backgroundColor: theme === "dark" ? "#1e293b" : "#ffffff",
                 borderColor: colors.border,
                 color: colors.text,
               }}
@@ -181,7 +277,7 @@ export default function SettingsPage() {
               max={365}
               className="w-40 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 transition-all"
               style={{
-                backgroundColor: colors.background,
+                backgroundColor: theme === "dark" ? "#1e293b" : "#ffffff",
                 borderColor: colors.border,
                 color: colors.text,
               }}

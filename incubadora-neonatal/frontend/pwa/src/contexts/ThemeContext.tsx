@@ -93,6 +93,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.style.setProperty("--color-text-secondary", colors.textSecondary);
     document.documentElement.style.setProperty("--color-border", colors.border);
     document.documentElement.style.setProperty("--color-accent", colors.accent);
+    
+    // Agregar atributo data-theme para estilos CSS
+    document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {

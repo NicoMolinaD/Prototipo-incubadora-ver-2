@@ -149,3 +149,23 @@ export async function unlinkDevice(device_id: string) {
   });
   return handleResponse<{ id: number; device_id: string; user_id: number | null; name: string | null }>(r);
 }
+
+// === Gestión de cuenta de usuario ===
+export async function updateCurrentUser(data: {
+  username?: string;
+  email?: string;
+  password?: string;
+}) {
+  const r = await fetch(`${BASE}/auth/me`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<{
+    id: number;
+    username: string;
+    email: string;
+    is_admin: boolean;
+    is_active: boolean;
+  }>(r);
+}

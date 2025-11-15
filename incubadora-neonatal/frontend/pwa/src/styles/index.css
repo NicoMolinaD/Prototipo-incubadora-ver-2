@@ -39,3 +39,45 @@ body {
   color: var(--color-text);
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* Estilos para inputs que se adaptan al tema */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  border-color: var(--color-border);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Para temas oscuros, hacer los inputs más claros */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="tel"],
+[data-theme="dark"] input[type="url"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
+}
