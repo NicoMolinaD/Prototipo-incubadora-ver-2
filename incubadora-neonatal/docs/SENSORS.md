@@ -17,7 +17,7 @@ Microcontrolador principal que gestiona toda la adquisición de datos, control d
 
 ## Sensores de Temperatura y Humedad
 
-### SHT41 (2 unidades)
+### SHT41 (3 unidades)
 
 Sensores de temperatura y humedad de alta precisión fabricados por Sensirion, utilizados para medir la temperatura del aire en la incubadora.
 
@@ -48,6 +48,18 @@ Sensor de temperatura y humedad utilizado para medir la temperatura de la piel d
 **Ubicación en el Sistema:**
 - `CH_SHT31` (Canal 1 del multiplexor): Sensor de temperatura de la piel
 
+### Termistor NTC 10K 3950 (1 unidad)  
+
+Sensor de temperatura Piel
+
+**Especificaciones:**
+- Resistencia: 10 kΩ ±1% a 25 °C
+- Constante de tiempo térmica (tiempo de respuesta): ≤ 15 s
+- Disipación de potencia (factor de disipación): ~5 mW/°C en aire estático.
+
+
+Disipación de potencia (factor de disipación): ~5 mW/°C en aire estático
+
 ## Sensor de Peso
 
 ### HX711 + Célula de Carga
@@ -77,12 +89,13 @@ Multiplexor I2C de 8 canales que permite conectar múltiples dispositivos I2C al
 - Permite selección dinámica de canal mediante software
 
 **Configuración de Canales:**
-- Canal 1: SHT31 (temperatura de piel)
+- Canal 1: SHT31 (temperatura aire 1)
 - Canal 2: OLED C (SSD1306 - UI setpoint)
 - Canal 3: OLED B (SH1106 - Humedad/peso)
 - Canal 4: OLED A (SH1106 - Temperatura aire/piel)
-- Canal 6: SHT41 A (temperatura aire 1)
-- Canal 7: SHT41 B (temperatura aire 2)
+- Canal 5: SHT41 A (temperatura aire 2)
+- Canal 6: SHT41 B (temperatura aire 3)
+- Canal 7: SHT41 C (temperatura aire 4)
 
 ## Pantallas de Visualización
 
