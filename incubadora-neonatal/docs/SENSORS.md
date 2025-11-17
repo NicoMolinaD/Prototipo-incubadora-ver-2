@@ -35,7 +35,7 @@ Sensores de temperatura y humedad de alta precisión fabricados por Sensirion, u
 
 ### SHT31 (1 unidad)
 
-Sensor de temperatura y humedad utilizado para medir la temperatura de la piel del neonato.
+Sensor de temperatura y humedad utilizado para medir la temperatura del aire.
 
 **Especificaciones:**
 - Rango de temperatura: -40°C a +125°C
@@ -58,7 +58,6 @@ Sensor de temperatura Piel
 - Disipación de potencia (factor de disipación): ~5 mW/°C en aire estático.
 
 
-Disipación de potencia (factor de disipación): ~5 mW/°C en aire estático
 
 ## Sensor de Peso
 
