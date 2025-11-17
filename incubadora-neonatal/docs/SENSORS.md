@@ -163,12 +163,12 @@ Sistema de control de humidificación mediante modulación por ancho de pulso (P
 
 ## Indicadores y Alarmas
 
-### Matriz LED NeoPixel 2x5
+### Matriz 2x5 y LEDS
 
-Matriz de LEDs direccionables RGB utilizada como indicador visual de estado y alarmas.
+Matriz de botones utilizada como interfaz interactiva, en conjunto con los leds como indicador visual de estado y alarma sonora.
 
 **Especificaciones:**
-- 10 LEDs NeoPixel (2 filas x 5 columnas)
+- 10 Push buttons en matriz 5x2
 - Control mediante protocolo WS2812
 - Colores RGB configurables
 - Indicadores visuales de estado del sistema
