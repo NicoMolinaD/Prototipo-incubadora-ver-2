@@ -95,8 +95,13 @@ echo ""
 echo "Deteniendo nginx temporalmente para obtener certificados..."
 if command -v docker &> /dev/null; then
     # Intentar desde diferentes ubicaciones posibles
-    if [ -f "../../ops/docker-compose.prod.yml" ]; then
+    if [ -f "../../docker-compose.yml" ]; then
+        # Desde ops/nginx, subir dos niveles a la raíz
+        docker compose -f ../../docker-compose.yml stop nginx 2>/dev/null || true
+    elif [ -f "../../ops/docker-compose.prod.yml" ]; then
         docker compose -f ../../ops/docker-compose.prod.yml stop nginx 2>/dev/null || true
+    elif [ -f "../docker-compose.yml" ]; then
+        docker compose -f ../docker-compose.yml stop nginx 2>/dev/null || true
     elif [ -f "../docker-compose.prod.yml" ]; then
         docker compose -f ../docker-compose.prod.yml stop nginx 2>/dev/null || true
     elif docker compose ps nginx 2>/dev/null | grep -q "Up"; then
@@ -179,7 +184,8 @@ echo ""
 echo "  0 0 * * * certbot renew --quiet --deploy-hook 'docker compose -f /ruta/a/docker-compose.prod.yml restart nginx'"
 echo ""
 echo "Ahora puedes iniciar nginx con:"
-echo "  docker compose -f ops/docker-compose.prod.yml up -d nginx"
+echo "  cd ../../ && docker compose up -d nginx"
+echo "  # O desde la raíz: docker compose up -d nginx"
 echo ""
 echo "Si tuviste problemas, consulta SOLUCION-FIREWALL.md para más ayuda."
 echo ""
