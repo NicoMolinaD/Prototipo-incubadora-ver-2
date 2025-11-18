@@ -140,20 +140,27 @@ echo "  - El dominio apunta a esta IP"
 echo "  - Nginx está detenido"
 echo ""
 
-# Intentar obtener certificados
-sudo certbot certonly --standalone \
-    --non-interactive \
-    --agree-tos \
-    --email "${EMAIL}" \
-    --preferred-challenges http \
-    -d "${DOMAIN}" \
-    -d "www.${DOMAIN}" \
-    --verbose
-
-# Verificar que los certificados se generaron correctamente
-if [ ! -f "${LETSENCRYPT_DIR}/fullchain.pem" ] || [ ! -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
-    echo "Error: Los certificados no se generaron correctamente."
-    exit 1
+# Verificar si los certificados ya existen
+if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+    echo "Los certificados ya existen en Let's Encrypt."
+    echo "Copiando certificados existentes..."
+else
+    # Intentar obtener certificados nuevos
+    echo "Obteniendo nuevos certificados de Let's Encrypt..."
+    sudo certbot certonly --standalone \
+        --non-interactive \
+        --agree-tos \
+        --email "${EMAIL}" \
+        --preferred-challenges http \
+        -d "${DOMAIN}" \
+        -d "www.${DOMAIN}" \
+        --verbose
+    
+    # Verificar que los certificados se generaron correctamente
+    if [ ! -f "${LETSENCRYPT_DIR}/fullchain.pem" ] || [ ! -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+        echo "Error: Los certificados no se generaron correctamente."
+        exit 1
+    fi
 fi
 
 # Copiar certificados al directorio del proyecto
