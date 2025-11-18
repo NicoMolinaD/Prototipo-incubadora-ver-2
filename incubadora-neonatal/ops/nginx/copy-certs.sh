@@ -7,6 +7,7 @@ set -e
 DOMAIN="marsupia.online"
 CERT_DIR="$(dirname "$0")/certs"
 LETSENCRYPT_DIR="/etc/letsencrypt/live/${DOMAIN}"
+LETSENCRYPT_ARCHIVE="/etc/letsencrypt/archive/${DOMAIN}"
 
 echo "=========================================="
 echo "Copiando Certificados SSL Existentes"
@@ -14,13 +15,37 @@ echo "Dominio: ${DOMAIN}"
 echo "=========================================="
 echo ""
 
-# Verificar que los certificados existen en Let's Encrypt
-if [ ! -f "${LETSENCRYPT_DIR}/fullchain.pem" ] || [ ! -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
-    echo "ERROR: Los certificados no se encuentran en ${LETSENCRYPT_DIR}"
+# Buscar certificados en live/ primero, luego en archive/
+CERT_FOUND=false
+LETSENCRYPT_FULLCHAIN=""
+LETSENCRYPT_PRIVKEY=""
+
+if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+    CERT_FOUND=true
+    LETSENCRYPT_FULLCHAIN="${LETSENCRYPT_DIR}/fullchain.pem"
+    LETSENCRYPT_PRIVKEY="${LETSENCRYPT_DIR}/privkey.pem"
+    echo "Certificados encontrados en: ${LETSENCRYPT_DIR}"
+elif [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
+    # Buscar el certificado más reciente en archive
+    LATEST_FULLCHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
+    LATEST_KEY=$(ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
+    
+    if [ -n "$LATEST_FULLCHAIN" ] && [ -n "$LATEST_KEY" ]; then
+        CERT_FOUND=true
+        LETSENCRYPT_FULLCHAIN="$LATEST_FULLCHAIN"
+        LETSENCRYPT_PRIVKEY="$LATEST_KEY"
+        echo "Certificados encontrados en: ${LETSENCRYPT_ARCHIVE}"
+        echo "  - ${LETSENCRYPT_FULLCHAIN}"
+        echo "  - ${LETSENCRYPT_PRIVKEY}"
+    fi
+fi
+
+if [ "$CERT_FOUND" = false ]; then
+    echo "ERROR: Los certificados no se encuentran en Let's Encrypt"
     echo ""
-    echo "Los certificados deben estar en:"
-    echo "  - ${LETSENCRYPT_DIR}/fullchain.pem"
-    echo "  - ${LETSENCRYPT_DIR}/privkey.pem"
+    echo "Buscados en:"
+    echo "  - ${LETSENCRYPT_DIR}/"
+    echo "  - ${LETSENCRYPT_ARCHIVE}/"
     echo ""
     echo "Si los certificados no existen, ejecuta primero:"
     echo "  ./setup-letsencrypt.sh tu-email@ejemplo.com"
@@ -31,9 +56,10 @@ fi
 mkdir -p "$CERT_DIR"
 
 # Copiar certificados al directorio del proyecto
+echo ""
 echo "Copiando certificados al directorio del proyecto..."
-sudo cp "${LETSENCRYPT_DIR}/fullchain.pem" "${CERT_DIR}/"
-sudo cp "${LETSENCRYPT_DIR}/privkey.pem" "${CERT_DIR}/"
+sudo cp "${LETSENCRYPT_FULLCHAIN}" "${CERT_DIR}/fullchain.pem"
+sudo cp "${LETSENCRYPT_PRIVKEY}" "${CERT_DIR}/privkey.pem"
 
 # Ajustar permisos
 sudo chmod 644 "${CERT_DIR}/fullchain.pem"

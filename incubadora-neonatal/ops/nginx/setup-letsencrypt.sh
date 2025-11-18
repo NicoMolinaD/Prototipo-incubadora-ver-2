@@ -12,6 +12,7 @@ DOMAIN="marsupia.online"
 EMAIL="${1:-admin@marsupia.online}"  # Email para notificaciones de renovación
 CERT_DIR="$(dirname "$0")/certs"
 LETSENCRYPT_DIR="/etc/letsencrypt/live/${DOMAIN}"
+LETSENCRYPT_ARCHIVE="/etc/letsencrypt/archive/${DOMAIN}"
 
 echo "=========================================="
 echo "Configuración de Certificados SSL"
@@ -140,11 +141,31 @@ echo "  - El dominio apunta a esta IP"
 echo "  - Nginx está detenido"
 echo ""
 
-# Verificar si los certificados ya existen
+# Verificar si los certificados ya existen (en live/ o archive/)
+CERT_EXISTS=false
 if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
-    echo "Los certificados ya existen en Let's Encrypt."
-    echo "Copiando certificados existentes..."
-else
+    CERT_EXISTS=true
+    echo "Los certificados ya existen en Let's Encrypt (directorio live/)."
+elif [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
+    # Buscar el certificado más reciente en archive
+    LATEST_CERT=$(ls -t "${LETSENCRYPT_ARCHIVE}/cert"*.pem 2>/dev/null | head -n1)
+    LATEST_KEY=$(ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
+    LATEST_CHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/chain"*.pem 2>/dev/null | head -n1)
+    LATEST_FULLCHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
+    
+    if [ -n "$LATEST_FULLCHAIN" ] && [ -n "$LATEST_KEY" ]; then
+        CERT_EXISTS=true
+        echo "Los certificados existen en Let's Encrypt (directorio archive/)."
+        echo "Usando certificados del archive:"
+        echo "  - ${LATEST_FULLCHAIN}"
+        echo "  - ${LATEST_KEY}"
+        # Usar los certificados del archive directamente
+        LETSENCRYPT_FULLCHAIN="$LATEST_FULLCHAIN"
+        LETSENCRYPT_PRIVKEY="$LATEST_KEY"
+    fi
+fi
+
+if [ "$CERT_EXISTS" = false ]; then
     # Intentar obtener certificados nuevos
     echo "Obteniendo nuevos certificados de Let's Encrypt..."
     sudo certbot certonly --standalone \
@@ -161,13 +182,19 @@ else
         echo "Error: Los certificados no se generaron correctamente."
         exit 1
     fi
+    LETSENCRYPT_FULLCHAIN="${LETSENCRYPT_DIR}/fullchain.pem"
+    LETSENCRYPT_PRIVKEY="${LETSENCRYPT_DIR}/privkey.pem"
+elif [ -z "$LETSENCRYPT_FULLCHAIN" ]; then
+    # Si existen en live/, usar esos
+    LETSENCRYPT_FULLCHAIN="${LETSENCRYPT_DIR}/fullchain.pem"
+    LETSENCRYPT_PRIVKEY="${LETSENCRYPT_DIR}/privkey.pem"
 fi
 
 # Copiar certificados al directorio del proyecto
 echo ""
 echo "Copiando certificados al directorio del proyecto..."
-sudo cp "${LETSENCRYPT_DIR}/fullchain.pem" "${CERT_DIR}/"
-sudo cp "${LETSENCRYPT_DIR}/privkey.pem" "${CERT_DIR}/"
+sudo cp "${LETSENCRYPT_FULLCHAIN}" "${CERT_DIR}/fullchain.pem"
+sudo cp "${LETSENCRYPT_PRIVKEY}" "${CERT_DIR}/privkey.pem"
 
 # Ajustar permisos
 sudo chmod 644 "${CERT_DIR}/fullchain.pem"
