@@ -141,17 +141,17 @@ echo "  - El dominio apunta a esta IP"
 echo "  - Nginx está detenido"
 echo ""
 
-# Verificar si los certificados ya existen (en live/ o archive/)
+# Verificar si los certificados ya existen (en live/ o archive/) - usar sudo
 CERT_EXISTS=false
-if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+if sudo test -f "${LETSENCRYPT_DIR}/fullchain.pem" && sudo test -f "${LETSENCRYPT_DIR}/privkey.pem"; then
     CERT_EXISTS=true
     echo "Los certificados ya existen en Let's Encrypt (directorio live/)."
-elif [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
+elif sudo test -d "${LETSENCRYPT_ARCHIVE}"; then
     # Buscar el certificado más reciente en archive
-    LATEST_CERT=$(ls -t "${LETSENCRYPT_ARCHIVE}/cert"*.pem 2>/dev/null | head -n1)
-    LATEST_KEY=$(ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
-    LATEST_CHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/chain"*.pem 2>/dev/null | head -n1)
-    LATEST_FULLCHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
+    LATEST_CERT=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/cert"*.pem 2>/dev/null | head -n1)
+    LATEST_KEY=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
+    LATEST_CHAIN=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/chain"*.pem 2>/dev/null | head -n1)
+    LATEST_FULLCHAIN=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
     
     if [ -n "$LATEST_FULLCHAIN" ] && [ -n "$LATEST_KEY" ]; then
         CERT_EXISTS=true
@@ -178,7 +178,7 @@ if [ "$CERT_EXISTS" = false ]; then
         --verbose
     
     # Verificar que los certificados se generaron correctamente
-    if [ ! -f "${LETSENCRYPT_DIR}/fullchain.pem" ] || [ ! -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+    if ! sudo test -f "${LETSENCRYPT_DIR}/fullchain.pem" || ! sudo test -f "${LETSENCRYPT_DIR}/privkey.pem"; then
         echo "Error: Los certificados no se generaron correctamente."
         exit 1
     fi

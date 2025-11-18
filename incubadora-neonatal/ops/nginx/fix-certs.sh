@@ -15,19 +15,19 @@ echo "Dominio: ${DOMAIN}"
 echo "=========================================="
 echo ""
 
-# Verificar qué existe
+# Verificar qué existe (usando sudo para verificar)
 echo "1. Verificando directorios de Let's Encrypt..."
-if [ -d "${LETSENCRYPT_DIR}" ]; then
+if sudo test -d "${LETSENCRYPT_DIR}"; then
     echo "   ✓ Directorio live/ existe: ${LETSENCRYPT_DIR}"
-    ls -la "${LETSENCRYPT_DIR}" 2>/dev/null || echo "   (vacío o sin permisos)"
+    sudo ls -la "${LETSENCRYPT_DIR}" 2>/dev/null | head -10 || echo "   (sin permisos)"
 else
     echo "   ✗ Directorio live/ NO existe: ${LETSENCRYPT_DIR}"
 fi
 
-if [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
+if sudo test -d "${LETSENCRYPT_ARCHIVE}"; then
     echo "   ✓ Directorio archive/ existe: ${LETSENCRYPT_ARCHIVE}"
     echo "   Archivos en archive/:"
-    ls -la "${LETSENCRYPT_ARCHIVE}" 2>/dev/null | head -20 || echo "   (sin permisos)"
+    sudo ls -la "${LETSENCRYPT_ARCHIVE}" 2>/dev/null | head -20 || echo "   (sin permisos)"
 else
     echo "   ✗ Directorio archive/ NO existe: ${LETSENCRYPT_ARCHIVE}"
 fi
@@ -39,13 +39,13 @@ CERT_FOUND=false
 FULLCHAIN_SOURCE=""
 PRIVKEY_SOURCE=""
 
-# Opción 1: Buscar en live/ (enlaces simbólicos)
-if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+# Opción 1: Buscar en live/ (enlaces simbólicos) - usar sudo para verificar
+if sudo test -f "${LETSENCRYPT_DIR}/fullchain.pem" && sudo test -f "${LETSENCRYPT_DIR}/privkey.pem"; then
     CERT_FOUND=true
     FULLCHAIN_SOURCE="${LETSENCRYPT_DIR}/fullchain.pem"
     PRIVKEY_SOURCE="${LETSENCRYPT_DIR}/privkey.pem"
     echo "2. ✓ Certificados encontrados en live/"
-elif [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
+elif sudo test -d "${LETSENCRYPT_ARCHIVE}"; then
     echo "2. Buscando certificados en archive/..."
     
     # Buscar archivos más recientes

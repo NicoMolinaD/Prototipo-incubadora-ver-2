@@ -20,19 +20,19 @@ CERT_FOUND=false
 LETSENCRYPT_FULLCHAIN=""
 LETSENCRYPT_PRIVKEY=""
 
-if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey.pem" ]; then
+if sudo test -f "${LETSENCRYPT_DIR}/fullchain.pem" && sudo test -f "${LETSENCRYPT_DIR}/privkey.pem"; then
     CERT_FOUND=true
     LETSENCRYPT_FULLCHAIN="${LETSENCRYPT_DIR}/fullchain.pem"
     LETSENCRYPT_PRIVKEY="${LETSENCRYPT_DIR}/privkey.pem"
     echo "Certificados encontrados en: ${LETSENCRYPT_DIR}"
-elif [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
+elif sudo test -d "${LETSENCRYPT_ARCHIVE}"; then
     # Buscar el certificado más reciente en archive
     # Let's Encrypt guarda los archivos como cert1.pem, cert2.pem, etc.
     # Necesitamos construir fullchain.pem desde cert.pem + chain.pem
-    LATEST_CERT=$(ls -t "${LETSENCRYPT_ARCHIVE}/cert"*.pem 2>/dev/null | head -n1)
-    LATEST_CHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/chain"*.pem 2>/dev/null | head -n1)
-    LATEST_KEY=$(ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
-    LATEST_FULLCHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
+    LATEST_CERT=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/cert"*.pem 2>/dev/null | head -n1)
+    LATEST_CHAIN=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/chain"*.pem 2>/dev/null | head -n1)
+    LATEST_KEY=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
+    LATEST_FULLCHAIN=$(sudo ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
     
     if [ -n "$LATEST_KEY" ]; then
         CERT_FOUND=true
