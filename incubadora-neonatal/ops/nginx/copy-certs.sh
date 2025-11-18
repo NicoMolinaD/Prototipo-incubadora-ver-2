@@ -27,16 +27,34 @@ if [ -f "${LETSENCRYPT_DIR}/fullchain.pem" ] && [ -f "${LETSENCRYPT_DIR}/privkey
     echo "Certificados encontrados en: ${LETSENCRYPT_DIR}"
 elif [ -d "${LETSENCRYPT_ARCHIVE}" ]; then
     # Buscar el certificado más reciente en archive
-    LATEST_FULLCHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
+    # Let's Encrypt guarda los archivos como cert1.pem, cert2.pem, etc.
+    # Necesitamos construir fullchain.pem desde cert.pem + chain.pem
+    LATEST_CERT=$(ls -t "${LETSENCRYPT_ARCHIVE}/cert"*.pem 2>/dev/null | head -n1)
+    LATEST_CHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/chain"*.pem 2>/dev/null | head -n1)
     LATEST_KEY=$(ls -t "${LETSENCRYPT_ARCHIVE}/privkey"*.pem 2>/dev/null | head -n1)
+    LATEST_FULLCHAIN=$(ls -t "${LETSENCRYPT_ARCHIVE}/fullchain"*.pem 2>/dev/null | head -n1)
     
-    if [ -n "$LATEST_FULLCHAIN" ] && [ -n "$LATEST_KEY" ]; then
+    if [ -n "$LATEST_KEY" ]; then
         CERT_FOUND=true
-        LETSENCRYPT_FULLCHAIN="$LATEST_FULLCHAIN"
         LETSENCRYPT_PRIVKEY="$LATEST_KEY"
-        echo "Certificados encontrados en: ${LETSENCRYPT_ARCHIVE}"
-        echo "  - ${LETSENCRYPT_FULLCHAIN}"
-        echo "  - ${LETSENCRYPT_PRIVKEY}"
+        
+        # Si existe fullchain, usarlo; si no, construir desde cert + chain
+        if [ -n "$LATEST_FULLCHAIN" ]; then
+            LETSENCRYPT_FULLCHAIN="$LATEST_FULLCHAIN"
+            echo "Certificados encontrados en: ${LETSENCRYPT_ARCHIVE}"
+            echo "  - ${LETSENCRYPT_FULLCHAIN}"
+            echo "  - ${LETSENCRYPT_PRIVKEY}"
+        elif [ -n "$LATEST_CERT" ] && [ -n "$LATEST_CHAIN" ]; then
+            # Construir fullchain temporalmente
+            TEMP_FULLCHAIN=$(mktemp)
+            cat "$LATEST_CERT" "$LATEST_CHAIN" > "$TEMP_FULLCHAIN"
+            LETSENCRYPT_FULLCHAIN="$TEMP_FULLCHAIN"
+            echo "Certificados encontrados en: ${LETSENCRYPT_ARCHIVE}"
+            echo "  - Construyendo fullchain desde cert + chain"
+            echo "  - ${LETSENCRYPT_PRIVKEY}"
+        else
+            CERT_FOUND=false
+        fi
     fi
 fi
 
@@ -58,7 +76,13 @@ mkdir -p "$CERT_DIR"
 # Copiar certificados al directorio del proyecto
 echo ""
 echo "Copiando certificados al directorio del proyecto..."
-sudo cp "${LETSENCRYPT_FULLCHAIN}" "${CERT_DIR}/fullchain.pem"
+if [ "${LETSENCRYPT_FULLCHAIN}" != "${LETSENCRYPT_FULLCHAIN#/tmp}" ]; then
+    # Es un archivo temporal, copiarlo directamente
+    sudo cp "${LETSENCRYPT_FULLCHAIN}" "${CERT_DIR}/fullchain.pem"
+    rm -f "${LETSENCRYPT_FULLCHAIN}"
+else
+    sudo cp "${LETSENCRYPT_FULLCHAIN}" "${CERT_DIR}/fullchain.pem"
+fi
 sudo cp "${LETSENCRYPT_PRIVKEY}" "${CERT_DIR}/privkey.pem"
 
 # Ajustar permisos
