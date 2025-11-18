@@ -5,7 +5,7 @@
 set -e
 
 DOMAIN="marsupia.online"
-EXPECTED_IP="3.148.116.136"
+EXPECTED_IP="3.234.34.82"
 
 echo "=========================================="
 echo "Diagnóstico de Configuración SSL"

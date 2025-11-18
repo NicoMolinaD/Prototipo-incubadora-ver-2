@@ -53,16 +53,16 @@ Para producción, se recomienda usar certificados de **Let's Encrypt** con Certb
 ### Configuración del Dominio
 
 **Dominio:** `marsupia.online`  
-**IP Elástica AWS:** `3.148.116.136`
+**IP Elástica AWS:** `3.234.34.82`
 
 **Requisitos previos:**
-1. El dominio `marsupia.online` debe apuntar a la IP `3.148.116.136` en GoDaddy
+1. El dominio `marsupia.online` debe apuntar a la IP `3.234.34.82` en GoDaddy
 2. Los puertos 80 y 443 deben estar abiertos en el Security Group de AWS EC2
 3. Los registros DNS deben estar propagados (puede tardar hasta 48 horas)
 
 **Configuración en GoDaddy:**
-- Crear un registro A que apunte `marsupia.online` a `3.148.116.136`
-- Opcional: Crear un registro A para `www.marsupia.online` también a `3.148.116.136`
+- Crear un registro A que apunte `marsupia.online` a `3.234.34.82`
+- Opcional: Crear un registro A para `www.marsupia.online` también a `3.234.34.82`
 
 ### Opción 1: Script Automatizado (Recomendado)
 

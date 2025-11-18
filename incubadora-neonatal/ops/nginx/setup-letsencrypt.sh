@@ -2,7 +2,7 @@
 # Script para obtener certificados SSL de Let's Encrypt para marsupia.online
 # Este script debe ejecutarse en el servidor EC2 de AWS
 # Requisitos previos:
-#   1. El dominio marsupia.online debe apuntar a la IP 3.148.116.136
+#   1. El dominio marsupia.online debe apuntar a la IP 3.234.34.82
 #   2. Los puertos 80 y 443 deben estar abiertos en el Security Group de AWS
 #   3. Certbot debe estar instalado
 
@@ -34,7 +34,7 @@ mkdir -p "$CERT_DIR"
 # Verificar que el dominio apunta a esta IP
 echo "Verificando que el dominio ${DOMAIN} apunta a esta IP..."
 CURRENT_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || echo "")
-EXPECTED_IP="3.148.116.136"
+EXPECTED_IP="3.234.34.82"
 
 if [ -z "$CURRENT_IP" ]; then
     echo "No se pudo obtener la IP del servidor"

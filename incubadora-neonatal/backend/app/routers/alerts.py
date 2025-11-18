@@ -8,7 +8,7 @@ from ..auth import get_current_active_user
 
 router = APIRouter(tags=["alerts"])
 
-# Mapeo bitmask ? etiquetas (ajusta seg�n tus reglas)
+# Mapeo bitmask 
 ALERT_LABELS = {
     1: "Alta temp aire",
     2: "Baja temp aire",
