@@ -1,0 +1,1 @@
+Implementación de la cámara y funcionalidad de la misma en el software. El código es funcional, pero la implementación es el trabajo futuro.
