@@ -50,7 +50,7 @@ export default function LiveDataPage() {
     if (bleDataHistory.length > 0) {
       const combined = [...backendRows, ...bleDataHistory];
       const unique = combined.reduce((acc, current) => {
-        const existing = acc.find(item => 
+        const existing = acc.find(item =>
           item.ts === current.ts && item.device_id === current.device_id
         );
         if (!existing) {
@@ -58,7 +58,7 @@ export default function LiveDataPage() {
         }
         return acc;
       }, [] as SeriesPoint[]);
-      
+
       return unique.sort((a, b) => {
         const dateA = new Date(a.ts).getTime();
         const dateB = new Date(b.ts).getTime();
@@ -76,14 +76,14 @@ export default function LiveDataPage() {
         setBackendRows([]);
         return;
       }
-      
+
       const data = await getSeries({ since_minutes: 6 * 60, limit: 500 });
       const sortedData = [...data].sort((a, b) => {
         const dateA = new Date(a.ts).getTime();
         const dateB = new Date(b.ts).getTime();
         return dateA - dateB;
       });
-      
+
       setBackendRows(sortedData);
       setLastUpdate(new Date());
     } catch (err: any) {
@@ -389,6 +389,28 @@ export default function LiveDataPage() {
         </Card>
       </div>
 
+      {/* Placeholder LiveCamera */}
+      <div className="card p-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
+        <div className="flex items-center justify-center flex-col gap-4 py-8">
+          <div className="text-6xl">📹</div>
+          <h2 className="text-2xl font-bold" style={{ color: colors.text }}>
+            LiveCamera
+          </h2>
+          <p className="text-sm text-center max-w-md" style={{ color: colors.textSecondary }}>
+            Vista en tiempo real de la cámara de la incubadora. Esta característica estará disponible próximamente.
+          </p>
+          <div
+            className="mt-2 px-4 py-2 rounded-lg text-sm font-medium"
+            style={{
+              backgroundColor: `${colors.primary}15`,
+              color: colors.primary
+            }}
+          >
+            Próximamente disponible
+          </div>
+        </div>
+      </div>
+
       {/* Controles remotos - Solo visible si hay conexión BLE */}
       {bleConnected && (
         <div className="card p-6 space-y-6" style={{ backgroundColor: colors.card, borderColor: colors.border }}>
@@ -404,21 +426,19 @@ export default function LiveDataPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => setCurrentModeCmd("AIR")}
-                className={`px-6 py-3 rounded-lg border-2 font-medium transition-all ${
-                  currentMode === "AIR"
+                className={`px-6 py-3 rounded-lg border-2 font-medium transition-all ${currentMode === "AIR"
                     ? "bg-blue-600 text-white border-blue-600 shadow-md"
                     : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 Aire
               </button>
               <button
                 onClick={() => setCurrentModeCmd("SKIN")}
-                className={`px-6 py-3 rounded-lg border-2 font-medium transition-all ${
-                  currentMode === "SKIN"
+                className={`px-6 py-3 rounded-lg border-2 font-medium transition-all ${currentMode === "SKIN"
                     ? "bg-blue-600 text-white border-blue-600 shadow-md"
                     : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 Piel
               </button>
@@ -561,31 +581,28 @@ export default function LiveDataPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 onClick={() => setLightModeCmd("CIRCADIAN")}
-                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
-                  lightMode === "CIRCADIAN"
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${lightMode === "CIRCADIAN"
                     ? "bg-yellow-500 text-white border-yellow-500 shadow-md"
                     : "bg-white text-slate-700 border-slate-300 hover:bg-yellow-100"
-                }`}
+                  }`}
               >
                 Luz Circadiana
               </button>
               <button
                 onClick={() => setLightModeCmd("ICTERICIA")}
-                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
-                  lightMode === "ICTERICIA"
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${lightMode === "ICTERICIA"
                     ? "bg-yellow-500 text-white border-yellow-500 shadow-md"
                     : "bg-white text-slate-700 border-slate-300 hover:bg-yellow-100"
-                }`}
+                  }`}
               >
                 Ictericia
               </button>
               <button
                 onClick={() => setLightModeCmd("PHOTOBIOMODULATION")}
-                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
-                  lightMode === "PHOTOBIOMODULATION"
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${lightMode === "PHOTOBIOMODULATION"
                     ? "bg-yellow-500 text-white border-yellow-500 shadow-md"
                     : "bg-white text-slate-700 border-slate-300 hover:bg-yellow-100"
-                }`}
+                  }`}
               >
                 Fotobiomodulación
               </button>
@@ -599,11 +616,10 @@ export default function LiveDataPage() {
               <button
                 onClick={muteAlarms}
                 disabled={!bleConnected || alarmsMuted}
-                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${
-                  alarmsMuted
+                className={`px-6 py-4 rounded-lg border-2 font-medium transition-all ${alarmsMuted
                     ? "bg-slate-400 text-white border-slate-400 cursor-not-allowed"
                     : "bg-red-600 text-white border-red-600 hover:bg-red-700 shadow-md"
-                }`}
+                  }`}
               >
                 {alarmsMuted ? "Alarmas Silenciadas" : "Silenciar Alarmas"}
               </button>
