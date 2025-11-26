@@ -6,6 +6,8 @@ import { BluetoothProvider } from "./contexts/BluetoothContext";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AlertNotification from "./components/AlertNotification";
+import { useAlarmNotifications } from "./hooks/useAlarmNotifications";
 
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -23,6 +25,7 @@ function AppRoutes() {
   const { isAdmin } = useAuth();
   const { colors } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { notifications, dismissNotification } = useAlarmNotifications();
 
   const toggleSidebar = () => setSidebarOpen((s) => !s);
 
@@ -49,9 +52,8 @@ function AppRoutes() {
                 toggle={toggleSidebar}
               />
               <main
-                className={`flex-1 transition-all duration-300 ${
-                  sidebarOpen ? "ml-64" : "ml-0 lg:ml-64"
-                }`}
+                className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-0 lg:ml-64"
+                  }`}
               >
                 <TopBar toggleSidebar={toggleSidebar} />
                 <div className="px-4 sm:px-6 lg:px-8 py-6 max-w-6xl">
@@ -121,6 +123,8 @@ function AppRoutes() {
           }
         />
       </Routes>
+      {/* Sistema de notificaciones de alarmas */}
+      <AlertNotification notifications={notifications} onDismiss={dismissNotification} />
     </div>
   );
 }
